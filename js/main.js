@@ -63,6 +63,7 @@
     const joinRoomPanel = document.getElementById('join-room-panel');
     const openCreateRoomButton = document.getElementById('open-create-room-button');
     const openJoinRoomButton = document.getElementById('open-join-room-button');
+    const changeUsernameButton = document.getElementById('change-username-button');
     const backFromCreateButton = document.getElementById('back-from-create-button');
     const backFromJoinButton = document.getElementById('back-from-join-button');
     const createRoomButton = document.getElementById('create-room-button');
@@ -123,6 +124,8 @@
     const MAX_USERNAME_CHARS = 20;
     const USERNAME_COOKIE_KEY = 'mtf_username';
     const USERNAME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+    const VOLUME_COOKIE_KEY = 'mtf_volume';
+    const VOLUME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
     function setCookie(name, value, maxAgeSeconds) {
         document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; samesite=lax`;
@@ -229,9 +232,12 @@
         if (audioCtx && gainNode) {
             gainNode.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.02);
         }
+
+        setCookie(VOLUME_COOKIE_KEY, String(clampedPercent), VOLUME_COOKIE_MAX_AGE_SECONDS);
     }
 
-    setMasterVolume(10);
+    const rememberedVolume = Number(getCookie(VOLUME_COOKIE_KEY));
+    setMasterVolume(Number.isFinite(rememberedVolume) ? rememberedVolume : 10);
 
     // --- WEBSOCKET ---
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -708,6 +714,15 @@
 
     openJoinRoomButton.addEventListener('click', () => {
         showMainMenuView('join');
+    });
+
+    changeUsernameButton.addEventListener('click', () => {
+        const currentName = (myUsernameDisplay.textContent || getCookie(USERNAME_COOKIE_KEY) || '').trim().slice(0, MAX_USERNAME_CHARS);
+        usernameInput.value = currentName;
+        switchScreen('login');
+        usernameInput.focus();
+        usernameInput.select();
+        showToast('Enter new username, then press Continue.', 1800);
     });
 
     backFromCreateButton.addEventListener('click', () => {
