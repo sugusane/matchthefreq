@@ -320,6 +320,10 @@ button:disabled {
     grid-column: 1 / -1;
 }
 
+#open-daily-button {
+    grid-column: 1 / -1;
+}
+
 .menu-panel {
     margin-top: 10px;
     padding: 12px;
@@ -719,11 +723,36 @@ button:disabled {
     z-index: 1;
 }
 
+#guessing-phase {
+    touch-action: none;
+}
+
 .result-row {
     width: min(88%, 430px);
     display: flex;
     justify-content: space-between;
     margin: 10px 0;
+}
+
+.practice-end-actions {
+    width: min(88%, 430px);
+    margin-top: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.daily-result-info {
+    width: min(88%, 430px);
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 224, 102, 0.34);
+    background: rgba(255, 224, 102, 0.08);
+    color: #ffe899;
+    font-family: 'Press Start 2P', cursive;
+    font-size: clamp(0.56rem, 1.8vw, 0.7rem);
+    line-height: 1.6;
+    text-align: center;
 }
 
 .result-label {

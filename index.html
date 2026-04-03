@@ -29,6 +29,7 @@
                 <ul class="sidebar-list">
                     <li>Practice mode can now use custom lives and rounds.</li>
                     <li>Exit Practice lets you leave mid-game without reloading.</li>
+                    <li>Daily Game resets every 24 hours with 1 life and 5 rounds.</li>
                     <li>Main menu now has wider buttons and a better layout.</li>
                     <li>Result screens show how close each guess was.</li>
                 </ul>
@@ -49,12 +50,21 @@
 
                 <div id="menu-actions" class="menu-actions">
                     <button id="open-practice-button">Practice Mode</button>
+                    <button id="open-daily-button">Daily Game</button>
                     <button id="open-create-room-button">Create Room</button>
                     <button id="open-join-room-button">Join Game</button>
                 </div>
 
                 <div id="practice-panel" class="menu-panel hidden">
                     <div class="panel-title">Practice Setup</div>
+                    <div class="setting">
+                        <label for="practice-listen-mode-setting">Listen Mode:</label>
+                        <select id="practice-listen-mode-setting">
+                            <option value="noob">Noob - 5.0s</option>
+                            <option value="easy" selected>Easy - 2.5s</option>
+                            <option value="hard">Hard - randomized</option>
+                        </select>
+                    </div>
                     <div class="setting">
                         <label for="practice-rounds-setting">Rounds:</label>
                         <input type="number" id="practice-rounds-setting" value="3" min="1" max="20">
@@ -73,7 +83,7 @@
                     <div class="panel-title">Create A New Room</div>
                     <div class="setting">
                         <label for="create-room-size-setting">Max Players:</label>
-                        <input type="number" id="create-room-size-setting" value="2" min="2" max="4">
+                        <input type="number" id="create-room-size-setting" value="2" min="2" max="2">
                     </div>
                     <label class="option-row">
                         <input type="checkbox" id="room-password-enabled">
@@ -137,7 +147,7 @@
                 </div>
                 <div class="setting">
                     <label for="max-players-setting">Max Players:</label>
-                    <input type="number" id="max-players-setting" value="2" min="2" max="4">
+                        <input type="number" id="max-players-setting" value="2" min="2" max="2">
                 </div>
                 <div class="setting">
                     <label for="listen-mode-setting">Listen Mode:</label>
@@ -209,6 +219,11 @@
                         <div class="result-label">OPPONENT</div>
                         <div id="result-opponent-guess" class="result-value">0.00</div>
                     </div>
+                    <div id="practice-end-actions" class="practice-end-actions hidden">
+                        <button id="practice-restart-button" type="button">Start Again</button>
+                        <button id="practice-back-menu-button" type="button" class="ghost-button">Back To Menu</button>
+                    </div>
+                    <div id="daily-result-info" class="daily-result-info hidden"></div>
                 </div>
             </div>
 
