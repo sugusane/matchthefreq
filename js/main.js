@@ -20,6 +20,7 @@
     let singleplayerUserGuess = 0;
     let singleplayerAdvanceTimer = null;
     let singleplayerReturnTimer = null;
+    let isConnectionReady = false;
     let previewOscillator = null, previewGain = null;
     let previewStopTimeout = null;
     let audioCtx, oscillator, gainNode;
@@ -81,6 +82,7 @@
 
     // Lobby elements
     const roomCodeDisplay = document.getElementById('room-code-display');
+    const lobbyLastMatch = document.getElementById('lobby-last-match');
     const playerList = document.getElementById('player-list');
     const roundsSetting = document.getElementById('rounds-setting');
     const livesSetting = document.getElementById('lives-setting');
@@ -128,6 +130,26 @@
     const VOLUME_COOKIE_KEY = 'mtf_volume';
     const VOLUME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
+    async function ensureAudioReady() {
+        initAudio();
+        if (!audioCtx) return false;
+        if (audioCtx.state === 'suspended') {
+            try {
+                await audioCtx.resume();
+            } catch (error) {
+                return false;
+            }
+        }
+        return audioCtx.state === 'running';
+    }
+
+    function unlockAudioOnFirstGesture() {
+        ensureAudioReady();
+    }
+
+    document.addEventListener('pointerdown', unlockAudioOnFirstGesture, { once: true });
+    document.addEventListener('keydown', unlockAudioOnFirstGesture, { once: true });
+
     function setCookie(name, value, maxAgeSeconds) {
         document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; samesite=lax`;
     }
@@ -169,7 +191,11 @@
     }
     function playTone(freq) {
         if (!audioCtx) initAudio();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {
+                showToast('Tap screen once to enable audio.');
+            });
+        }
         stopTone();
         oscillator = audioCtx.createOscillator();
         oscillator.type = 'sine';
@@ -178,7 +204,16 @@
         oscillator.connect(gainNode);
         oscillator.start();
     }
-    function stopTone() { if (oscillator) { oscillator.stop(); oscillator = null; } }
+    function stopTone() {
+        if (!oscillator) return;
+        try {
+            oscillator.stop();
+        } catch (error) {
+            // Ignore InvalidStateError when oscillator already stopped.
+        }
+        oscillator.disconnect();
+        oscillator = null;
+    }
 
     function stopPreviewTone() {
         if (previewStopTimeout) {
@@ -186,7 +221,11 @@
             previewStopTimeout = null;
         }
         if (previewOscillator) {
-            previewOscillator.stop();
+            try {
+                previewOscillator.stop();
+            } catch (error) {
+                // Ignore InvalidStateError when preview oscillator already stopped.
+            }
             previewOscillator.disconnect();
             previewOscillator = null;
         }
@@ -203,7 +242,11 @@
         }
 
         initAudio();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {
+                showToast('Tap screen once to enable audio.');
+            });
+        }
 
         stopPreviewTone();
         previewOscillator = audioCtx.createOscillator();
@@ -246,16 +289,27 @@
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
+    function setMultiplayerReadyState(isReady) {
+        isConnectionReady = isReady;
+        openCreateRoomButton.disabled = !isReady;
+        openJoinRoomButton.disabled = !isReady;
+        createRoomButton.disabled = !isReady;
+        joinRoomButton.disabled = !isReady;
+    }
+
+    // Prevent early multiplayer clicks while websocket is still connecting.
+    setMultiplayerReadyState(false);
+
     ws.onopen = () => {
+        setMultiplayerReadyState(true);
         if (pendingLoginUsername) {
             sendMessage('login', { username: pendingLoginUsername });
             pendingLoginUsername = '';
         }
-        createRoomButton.disabled = false;
-        joinRoomButton.disabled = false;
     };
 
     ws.onclose = () => {
+        setMultiplayerReadyState(false);
         showStatus('Connection lost. Please refresh.', 2600);
     };
 
@@ -285,6 +339,26 @@
         const numericValue = parseInt(value, 10);
         if (!Number.isFinite(numericValue)) return fallback;
         return Math.max(min, Math.min(max, numericValue));
+    }
+
+    function sanitizeBoundedIntegerInput(inputEl, min, max, fallback = min) {
+        const rawValue = String(inputEl?.value ?? '');
+        const digitsOnly = rawValue.replace(/\D+/g, '');
+        if (!digitsOnly) {
+            inputEl.value = String(fallback);
+            return fallback;
+        }
+
+        const parsed = parseInt(digitsOnly, 10);
+        const clamped = Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
+        inputEl.value = String(clamped);
+        return clamped;
+    }
+
+    function sendLobbySettingsUpdate() {
+        const rounds = sanitizeBoundedIntegerInput(roundsSetting, 1, 10, 3);
+        const lives = sanitizeBoundedIntegerInput(livesSetting, 1, 10, 3);
+        sendMessage('updateSettings', { rounds, lives, maxPlayers: maxPlayersSetting.value, listenMode: listenModeSetting.value });
     }
 
     function setLobbySettingsReadOnly(isReadOnly) {
@@ -331,8 +405,11 @@
 
     function setSingleplayerUiActive(isActive) {
         exitSingleplayerButton.classList.toggle('hidden', !isActive);
-        if (isActive) {
+        if (!isActive) {
             singleplayerEndActions.classList.add('hidden');
+            singleplayerEndActions.style.display = 'none';
+        } else {
+            singleplayerEndActions.style.display = '';
         }
     }
 
@@ -356,6 +433,19 @@
         switchScreen('mainMenu');
         showMainMenuView('actions');
         showToast('Left singleplayer mode.', 1600);
+    }
+
+    function leaveMultiplayerRoom() {
+        clearSingleplayerAdvanceTimer();
+        cleanupActiveGameAudio();
+        isSingleplayerMode = false;
+        setSingleplayerUiActive(false);
+        singleplayerEndActions.classList.add('hidden');
+        sendMessage('leaveRoom', {});
+        resetMainMenuInputs();
+        switchScreen('mainMenu');
+        showMainMenuView('actions');
+        showToast('Left room.', 1600);
     }
 
     function startSingleplayerRound() {
@@ -429,6 +519,7 @@
                 isSingleplayerMode = false;
                 setSingleplayerUiActive(false);
                 singleplayerEndActions.classList.remove('hidden');
+                singleplayerEndActions.style.display = '';
                 showStatus('Singleplayer over. Choose what to do next.', 1800);
                 return;
             }
@@ -440,7 +531,7 @@
                 isSingleplayerMode = false;
                 setSingleplayerUiActive(false);
                 singleplayerEndActions.classList.remove('hidden');
-                showStatus('Singleplayer complete. Choose next action.', 1800);
+                singleplayerEndActions.style.display = '';
             }
         }, 4200);
     }
@@ -448,7 +539,7 @@
     function startSingleplayerMode() {
         isSingleplayerMode = true;
         singleplayerRound = 1;
-        singleplayerMaxRounds = clampSingleplayerSetting(singleplayerRoundsSetting.value, 1, 20, 3);
+        singleplayerMaxRounds = clampSingleplayerSetting(singleplayerRoundsSetting.value, 1, 10, 3);
         singleplayerLives = clampSingleplayerSetting(singleplayerLivesSetting.value, 1, 10, 3);
         singleplayerListenMode = String(singleplayerListenModeSetting?.value || 'easy');
         clearSingleplayerAdvanceTimer();
@@ -462,6 +553,7 @@
         roundIndicator.textContent = `1/${singleplayerMaxRounds}`;
         setSingleplayerUiActive(true);
         singleplayerEndActions.classList.add('hidden');
+        singleplayerEndActions.style.display = '';
         startSingleplayerRound();
     }
 
@@ -536,6 +628,12 @@
     function switchScreen(screenName) {
         Object.values(screens).forEach(s => s.classList.remove('active'));
         screens[screenName].classList.add('active');
+
+        if (screenName !== 'game') {
+            cleanupActiveGameAudio();
+            setSingleplayerUiActive(false);
+            singleplayerEndActions.classList.add('hidden');
+        }
 
         if (screenName === 'mainMenu') {
             showMainMenuView('actions');
@@ -688,6 +786,7 @@
     });
 
     loginButton.addEventListener('click', () => {
+        ensureAudioReady();
         const username = usernameInput.value.trim().slice(0, MAX_USERNAME_CHARS);
         if (username) {
             applyLoginUsername(username);
@@ -705,6 +804,7 @@
     });
 
     menuTestSoundButton.addEventListener('click', () => {
+        ensureAudioReady();
         playPreviewTone(440, 650);
     });
 
@@ -713,6 +813,10 @@
     });
 
     openCreateRoomButton.addEventListener('click', () => {
+        if (!isConnectionReady) {
+            showToast('Connecting to server, please wait...');
+            return;
+        }
         showMainMenuView('create');
     });
 
@@ -722,6 +826,7 @@
     });
 
     startSingleplayerButton.addEventListener('click', () => {
+        ensureAudioReady();
         startSingleplayerMode();
     });
 
@@ -730,6 +835,10 @@
     });
 
     openJoinRoomButton.addEventListener('click', () => {
+        if (!isConnectionReady) {
+            showToast('Connecting to server, please wait...');
+            return;
+        }
         showMainMenuView('join');
     });
 
@@ -753,7 +862,11 @@
     });
 
     exitSingleplayerButton.addEventListener('click', () => {
-        leaveSingleplayerMode();
+        if (isSingleplayerMode) {
+            leaveSingleplayerMode();
+            return;
+        }
+        leaveMultiplayerRoom();
     });
     
     roomPasswordEnabled.addEventListener('change', () => {
@@ -827,28 +940,25 @@
     });
 
     singleplayerRestartButton.addEventListener('click', () => {
-        if (singleplayerRestartButton.disabled) return;
-        
-        singleplayerRestartButton.disabled = true;
-        let countdown = 2;
-        singleplayerRestartButton.textContent = countdown;
-        
-        const countdownInterval = setInterval(() => {
-            countdown--;
-            singleplayerRestartButton.textContent = countdown;
-            
-            if (countdown <= 0) {
-                clearInterval(countdownInterval);
-                statusOverlay.classList.remove('active');
-                singleplayerRestartButton.disabled = false;
-                singleplayerRestartButton.textContent = 'Next';
-                startSingleplayerMode();
-            }
-        }, 1000);
+        statusOverlay.classList.remove('active');
+        singleplayerRestartButton.textContent = 'Next';
+        startSingleplayerMode();
     });
 
     singleplayerBackMenuButton.addEventListener('click', () => {
         leaveSingleplayerMode();
+    });
+
+    const boundedSettings = [
+        [singleplayerRoundsSetting, 1, 10, 3],
+        [singleplayerLivesSetting, 1, 10, 3],
+        [roundsSetting, 1, 10, 3],
+        [livesSetting, 1, 10, 3],
+    ];
+    boundedSettings.forEach(([inputEl, min, max, fallback]) => {
+        inputEl.addEventListener('input', () => sanitizeBoundedIntegerInput(inputEl, min, max, fallback));
+        inputEl.addEventListener('blur', () => sanitizeBoundedIntegerInput(inputEl, min, max, fallback));
+        sanitizeBoundedIntegerInput(inputEl, min, max, fallback);
     });
 
     maxPlayersSetting.addEventListener('change', () => {
@@ -872,17 +982,21 @@
         }
     });
 
-    startGameButton.addEventListener('click', () => { sendMessage('startGame', {}); });
+    startGameButton.addEventListener('click', () => {
+        ensureAudioReady();
+        sendMessage('startGame', {});
+    });
     leaveLobbyButton.addEventListener('click', () => {
+        cleanupActiveGameAudio();
         sendMessage('leaveRoom', {});
         resetMainMenuInputs();
         switchScreen('mainMenu');
     });
     
-    roundsSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value }));
-    livesSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value }));
-    maxPlayersSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value }));
-    listenModeSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value, listenMode: listenModeSetting.value }));
+    roundsSetting.addEventListener('change', sendLobbySettingsUpdate);
+    livesSetting.addEventListener('change', sendLobbySettingsUpdate);
+    maxPlayersSetting.addEventListener('change', sendLobbySettingsUpdate);
+    listenModeSetting.addEventListener('change', sendLobbySettingsUpdate);
 
     submitGuessButton.addEventListener('click', () => { 
         if (!isGuessingPhase) return;
@@ -964,6 +1078,13 @@
                 isHost = payload.ownerId === myPlayerId;
                 roomCodeDisplay.textContent = payload.roomCode;
                 roomCodeDisplay.title = payload.hasPassword ? 'Password protected room' : 'Open room';
+                if (payload.lastMatchSummary) {
+                    lobbyLastMatch.textContent = payload.lastMatchSummary;
+                    lobbyLastMatch.classList.remove('hidden');
+                } else {
+                    lobbyLastMatch.textContent = '';
+                    lobbyLastMatch.classList.add('hidden');
+                }
                 playerList.replaceChildren();
                 payload.players.forEach((player) => {
                     const row = document.createElement('div');
@@ -1008,7 +1129,27 @@
                 joinRoomButton.disabled = false;
                 break;
             case 'statusUpdate': showStatus(payload.message); break;
-            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); singleplayerEndActions.classList.add('hidden'); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
+            case 'gameStart':
+                statusOverlay.classList.remove('active');
+                initAudio();
+                resetGuessSubmissionState();
+                isSingleplayerMode = false;
+                setSingleplayerUiActive(false);
+                singleplayerEndActions.classList.add('hidden');
+                singleplayerEndActions.style.display = 'none';
+                opponent = payload.opponent;
+                {
+                    const rawOpponentName = String(opponent?.username || '').trim();
+                    const myLabel = String(myUsernameDisplay.textContent || '').trim().toLowerCase();
+                    const candidate = rawOpponentName || 'Opponent';
+                    opponentUsernameDisplay.textContent = candidate.toLowerCase() === myLabel || candidate.toLowerCase() === 'you'
+                        ? 'Opponent'
+                        : candidate;
+                }
+                updateLives(myLivesContainer, payload.lives);
+                updateLives(opponentLivesContainer, payload.opponentLives);
+                switchScreen('game');
+                break;
             case 'roundPrepStart':
                 cleanupActiveGameAudio();
                 switchPhase('prep');
@@ -1060,18 +1201,20 @@
                 if (payload.roundWinnerId) {
                     (payload.roundWinnerId === myPlayerId ? yourResultRow : opponentResultRow).classList.add('winner');
                 }
-                singleplayerEndActions.classList.add('hidden');
+                if (!isSingleplayerMode) {
+                    singleplayerEndActions.classList.add('hidden');
+                    singleplayerEndActions.style.display = 'none';
+                }
                 break;
             case 'setResult': updateLives(myLivesContainer, payload.yourLives); updateLives(opponentLivesContainer, payload.opponentLives); let txt = "This set is a draw!"; if (payload.setWinnerId) txt = payload.setWinnerId === myPlayerId ? "You won this set!" : "Opponent won this set."; showStatus(txt, 5000); break;
             case 'gameOver': 
                 cleanupActiveGameAudio();
-                const winTxt = payload.winnerId === myPlayerId ? "YOU ARE THE WINNER!" : `${opponent.username} is the winner!`; 
-                showStatus(winTxt, 4000); 
+                showStatus('Match finished. Returning to lobby...', 2200);
                 setTimeout(() => { 
                     // We don't switch screen directly, we wait for the server to send a lobby update
                     // which will then switch the screen. This ensures the lobby is in a correct state.
                     statusOverlay.classList.remove('active'); 
-                }, 4000); 
+                }, 2200); 
                 break;
             case 'opponentDisconnected': 
                 cleanupActiveGameAudio();

@@ -232,6 +232,7 @@ function handleMessage(playerId, type, payload) {
                 players: [playerId],
                 passwordSalt,
                 passwordHash: password ? hashPassword(password, passwordSalt) : null,
+                lastMatchSummary: '',
                 settings: {
                     lives: 3,
                     rounds: 3,
@@ -278,7 +279,7 @@ function handleMessage(playerId, type, payload) {
         case 'updateSettings':
             const playerRoom = rooms[player.roomCode];
             if (playerRoom && playerRoom.ownerId === playerId) {
-                playerRoom.settings.lives = clampInteger(payload?.lives, 1, 5, playerRoom.settings.lives);
+                playerRoom.settings.lives = clampInteger(payload?.lives, 1, 10, playerRoom.settings.lives);
                 playerRoom.settings.rounds = clampInteger(payload?.rounds, 1, 10, playerRoom.settings.rounds);
                 const requestedMaxPlayers = clampInteger(payload?.maxPlayers, 2, 2, playerRoom.settings.maxPlayers);
                 playerRoom.settings.maxPlayers = Math.max(requestedMaxPlayers, playerRoom.players.length);
@@ -356,7 +357,8 @@ function updateLobby(roomCode) {
         ownerId: room.ownerId,
         players: room.players.map(pid => ({ id: pid, username: sanitizeUsername(players[pid]?.username || 'Player') })),
         settings: room.settings,
-        hasPassword: Boolean(room.passwordHash)
+        hasPassword: Boolean(room.passwordHash),
+        lastMatchSummary: room.lastMatchSummary || ''
     };
 
     room.players.forEach(playerId => {
@@ -567,6 +569,8 @@ function evaluateSet(room) {
 
     if (session.lives[p1Id] <= 0 || session.lives[p2Id] <= 0) {
         const gameWinner = session.lives[p1Id] > 0 ? p1Id : p2Id;
+        const winnerName = sanitizeUsername(players[gameWinner]?.username || 'Player');
+        room.lastMatchSummary = `Last match winner: ${winnerName}`;
         broadcastToRoom(room.id, 'gameOver', { winnerId: gameWinner });
         room.gameState = null;
         setTimeout(() => updateLobby(room.id), 4200);

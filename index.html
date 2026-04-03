@@ -88,11 +88,11 @@
                     </div>
                     <div class="setting">
                         <label for="practice-rounds-setting">Rounds:</label>
-                        <input type="number" id="practice-rounds-setting" value="3" min="1" max="20">
+                        <input type="number" id="practice-rounds-setting" value="3" min="1" max="10" step="1" inputmode="numeric" pattern="\\d*">
                     </div>
                     <div class="setting">
                         <label for="practice-lives-setting">Lives:</label>
-                        <input type="number" id="practice-lives-setting" value="3" min="1" max="10">
+                        <input type="number" id="practice-lives-setting" value="3" min="1" max="10" step="1" inputmode="numeric" pattern="\\d*">
                     </div>
                     <div class="menu-panel-actions">
                         <button id="start-practice-button">Start Singleplayer</button>
@@ -152,15 +152,16 @@
         <div class="card panel">
             <h1>Lobby</h1>
             <div class="room-info">Room Code: <span id="room-code-display"></span></div>
+            <div id="lobby-last-match" class="lobby-last-match hidden"></div>
             <div id="player-list"></div>
             <div id="game-settings" class="owner-only">
                 <div class="setting">
                     <label for="rounds-setting">Rounds per Set:</label>
-                    <input type="number" id="rounds-setting" value="3" min="1" max="10">
+                    <input type="number" id="rounds-setting" value="3" min="1" max="10" step="1" inputmode="numeric" pattern="\\d*">
                 </div>
                 <div class="setting">
                     <label for="lives-setting">Lives:</label>
-                    <input type="number" id="lives-setting" value="3" min="1" max="5">
+                    <input type="number" id="lives-setting" value="3" min="1" max="10" step="1" inputmode="numeric" pattern="\\d*">
                 </div>
                 <div class="setting">
                     <label for="max-players-setting">Max Players:</label>
@@ -273,7 +274,7 @@
         </div>
     </div>
 
-    <script src="js/visualizer.js?v=20260403d"></script>
-    <script src="js/main.js?v=20260403d"></script>
+    <script src="js/visualizer.js?v=20260403k"></script>
+    <script src="js/main.js?v=20260403k"></script>
 </body>
 </html>
