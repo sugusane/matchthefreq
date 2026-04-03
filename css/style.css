@@ -529,6 +529,21 @@ button:disabled {
     font-size: 1rem;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-decoration: none;
+    font-variant-ligatures: normal;
+    letter-spacing: normal;
+}
+
+#my-username,
+#opponent-username {
+    text-decoration: none;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .opponent-hud {
@@ -539,6 +554,9 @@ button:disabled {
 .lives-container {
     display: flex;
     gap: 4px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 0;
 }
 
 .heart {
@@ -550,9 +568,10 @@ button:disabled {
     line-height: 1;
     font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Arial Unicode MS', sans-serif;
     color: var(--danger);
-    text-shadow: 0 0 8px rgba(255, 91, 103, 0.75);
+    text-shadow: 0 0 4px rgba(255, 91, 103, 0.5);
     font-size: 1.4rem;
     transform: translateY(1px) scale(1.06);
+    flex-shrink: 0;
 }
 
 .round-counter {
@@ -787,22 +806,17 @@ button:disabled {
     color: var(--success);
 }
 
-#max-players-setting,
-#max-players-setting + label {
-    display: none;
+#max-players-setting {
+    display: none !important;
 }
 
-.setting:has(#max-players-setting),
-.setting:has(> label[for="max-players-setting"]) {
-    display: none;
+#max-players-setting + label,
+label[for="max-players-setting"] {
+    display: none !important;
 }
 
-html:has(#max-players-setting) .setting {
-    display: none;
-}
-
-#game-settings .setting:nth-child(3) {
-    display: none;
+#game-settings .setting:has(#max-players-setting) {
+    display: none !important;
 }
 
 .status-overlay {
