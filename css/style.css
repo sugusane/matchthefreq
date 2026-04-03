@@ -32,6 +32,9 @@ body {
         linear-gradient(130deg, var(--bg-deep), var(--bg-mid));
     overflow: hidden;
     user-select: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 .bg-grid,
@@ -161,6 +164,9 @@ h1 {
     color: var(--accent-2);
     margin-bottom: 18px;
     text-shadow: 0 0 14px rgba(255, 224, 102, 0.4);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 .subtitle {
@@ -521,6 +527,8 @@ button:disabled {
     align-items: center;
     gap: 8px;
     font-size: 1rem;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .opponent-hud {
@@ -751,6 +759,14 @@ button:disabled {
     gap: 10px;
 }
 
+.practice-next-button:disabled {
+    filter: saturate(1.2) brightness(1.15);
+    cursor: default;
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+}
+
 .result-label {
     color: var(--text-dim);
     font-family: 'Press Start 2P', cursive;
@@ -769,6 +785,24 @@ button:disabled {
 .your-result.winner .result-value,
 .opponent-result.winner .result-value {
     color: var(--success);
+}
+
+#max-players-setting,
+#max-players-setting + label {
+    display: none;
+}
+
+.setting:has(#max-players-setting),
+.setting:has(> label[for="max-players-setting"]) {
+    display: none;
+}
+
+html:has(#max-players-setting) .setting {
+    display: none;
+}
+
+#game-settings .setting:nth-child(3) {
+    display: none;
 }
 
 .status-overlay {

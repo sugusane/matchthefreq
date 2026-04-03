@@ -726,10 +726,12 @@
     });
 
     backFromCreateButton.addEventListener('click', () => {
+        createRoomButton.disabled = false;
         showMainMenuView('actions');
     });
 
     backFromJoinButton.addEventListener('click', () => {
+        joinRoomButton.disabled = false;
         showMainMenuView('actions');
     });
 
@@ -750,6 +752,9 @@
             showStatus('Please set a room password or disable protection.', 2500);
             return;
         }
+        if (createRoomButton.disabled) return;
+        
+        createRoomButton.disabled = true;
         showStatus('Creating room...', 900);
         sendMessage('createRoom', {
             password,
@@ -758,12 +763,29 @@
                 maxPlayers: 2,
             }
         });
+        
+        // Re-enable button after 3 seconds if error occurs (server will respond with error message)
+        setTimeout(() => {
+            createRoomButton.disabled = false;
+        }, 3000);
     });
+
     joinRoomButton.addEventListener('click', () => { 
         const code = roomCodeInput.value.trim(); 
-        if (code) { 
-            sendMessage('joinRoom', { roomCode: code, password: roomPasswordInput.value.trim() }); 
-        } 
+        if (!code) {
+            showStatus('Please enter a room code.', 2500);
+            return;
+        }
+        
+        if (joinRoomButton.disabled) return;
+        joinRoomButton.disabled = true;
+        showStatus('Joining room...', 900);
+        sendMessage('joinRoom', { roomCode: code, password: roomPasswordInput.value.trim() }); 
+        
+        // Re-enable button after 3 seconds if error occurs
+        setTimeout(() => {
+            joinRoomButton.disabled = false;
+        }, 3000);
     });
     
     roomCodeInput.addEventListener('input', () => {
@@ -780,8 +802,24 @@
     });
 
     singleplayerRestartButton.addEventListener('click', () => {
-        statusOverlay.classList.remove('active');
-        startSingleplayerMode();
+        if (singleplayerRestartButton.disabled) return;
+        
+        singleplayerRestartButton.disabled = true;
+        let countdown = 2;
+        singleplayerRestartButton.textContent = countdown;
+        
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            singleplayerRestartButton.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                statusOverlay.classList.remove('active');
+                singleplayerRestartButton.disabled = false;
+                singleplayerRestartButton.textContent = 'Next';
+                startSingleplayerMode();
+            }
+        }, 1000);
     });
 
     singleplayerBackMenuButton.addEventListener('click', () => {
@@ -941,6 +979,8 @@
                 break;
             case 'error': 
                 showStatus(String(payload.message || 'Error'), 3000);
+                createRoomButton.disabled = false;
+                joinRoomButton.disabled = false;
                 break;
             case 'statusUpdate': showStatus(payload.message); break;
             case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); singleplayerEndActions.classList.add('hidden'); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
