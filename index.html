@@ -27,9 +27,8 @@
             <aside class="menu-sidebar menu-sidebar-left panel">
                 <div class="sidebar-title">Update Log</div>
                 <ul class="sidebar-list">
-                    <li>Practice mode can now use custom lives and rounds.</li>
-                    <li>Exit Practice lets you leave mid-game without reloading.</li>
-                    <li>Daily Game resets every 24 hours with 1 life and 5 rounds.</li>
+                    <li>Singleplayer mode can now use custom lives and rounds.</li>
+                    <li>Exit Singleplayer lets you leave mid-game without reloading.</li>
                     <li>Main menu now has wider buttons and a better layout.</li>
                     <li>Result screens show how close each guess was.</li>
                 </ul>
@@ -49,13 +48,13 @@
                 </div>
 
                 <div id="menu-actions" class="menu-actions">
-                    <button id="open-practice-button">Practice Mode</button>
+                    <button id="open-practice-button">Singleplayer</button>
                     <button id="open-create-room-button">Create Room</button>
                     <button id="open-join-room-button">Join Game</button>
                 </div>
 
                 <div id="practice-panel" class="menu-panel hidden">
-                    <div class="panel-title">Practice Setup</div>
+                    <div class="panel-title">Singleplayer Setup</div>
                     <div class="setting">
                         <label for="practice-listen-mode-setting">Listen Mode:</label>
                         <select id="practice-listen-mode-setting">
@@ -73,7 +72,7 @@
                         <input type="number" id="practice-lives-setting" value="3" min="1" max="10">
                     </div>
                     <div class="menu-panel-actions">
-                        <button id="start-practice-button">Start Practice</button>
+                        <button id="start-practice-button">Start Singleplayer</button>
                         <button id="back-from-practice-button" class="ghost-button">Back</button>
                     </div>
                 </div>
@@ -229,7 +228,7 @@
                 <div class="game-volume-title">Volume</div>
                 <input type="range" id="game-volume-slider" min="0" max="100" step="1" value="10" aria-label="Game volume slider">
                 <div id="game-volume-value" class="game-volume-value">10%</div>
-                <button id="exit-practice-button" class="ghost-button practice-exit-button hidden" type="button">Exit Practice</button>
+                <button id="exit-practice-button" class="ghost-button practice-exit-button hidden" type="button">Exit Singleplayer</button>
             </aside>
         </div>
         

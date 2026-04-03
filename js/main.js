@@ -303,14 +303,14 @@ document.addEventListener('DOMContentLoaded', () => {
         practiceEndActions.classList.add('hidden');
         switchScreen('mainMenu');
         showMainMenuView('actions');
-        showToast('Left practice mode.', 1600);
+        showToast('Left singleplayer mode.', 1600);
     }
 
     function startPracticeRound() {
         cleanupActiveGameAudio();
         switchScreen('game');
         setPracticeUiActive(true);
-        opponentUsernameDisplay.textContent = 'Practice';
+        opponentUsernameDisplay.textContent = 'Singleplayer';
         updateLives(opponentLivesContainer, 0);
         updateLives(myLivesContainer, practiceLives);
         roundIndicator.textContent = `${practiceRound}/${practiceMaxRounds}`;
@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isPracticeMode = false;
                 setPracticeUiActive(false);
                 practiceEndActions.classList.remove('hidden');
-                showStatus('Practice over. Choose what to do next.', 1800);
+                showStatus('Singleplayer over. Choose what to do next.', 1800);
                 return;
             }
 
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isPracticeMode = false;
                 setPracticeUiActive(false);
                 practiceEndActions.classList.remove('hidden');
-                showStatus('Practice complete. Choose next action.', 1800);
+                showStatus('Singleplayer complete. Choose next action.', 1800);
             }
         }, 4200);
     }
@@ -404,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setMasterVolume(parseInt(volumeSlider.value, 10) || 10);
         switchScreen('game');
         myUsernameDisplay.textContent = 'You';
-        opponentUsernameDisplay.textContent = 'Practice';
+        opponentUsernameDisplay.textContent = 'Singleplayer';
         updateLives(myLivesContainer, practiceLives);
         updateLives(opponentLivesContainer, 0);
         roundIndicator.textContent = `1/${practiceMaxRounds}`;
@@ -893,7 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showStatus(String(payload.message || 'Error'), 3000);
                 break;
             case 'statusUpdate': showStatus(payload.message); break;
-            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
+            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); practiceEndActions.classList.add('hidden'); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
             case 'roundPrepStart':
                 cleanupActiveGameAudio();
                 switchPhase('prep');
@@ -946,7 +946,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     (payload.roundWinnerId === myPlayerId ? yourResultRow : opponentResultRow).classList.add('winner');
                 }
                 practiceEndActions.classList.add('hidden');
-                hideDailyResultInfo();
                 break;
             case 'setResult': updateLives(myLivesContainer, payload.yourLives); updateLives(opponentLivesContainer, payload.opponentLives); let txt = "This set is a draw!"; if (payload.setWinnerId) txt = payload.setWinnerId === myPlayerId ? "You won this set!" : "Opponent won this set."; showStatus(txt, 5000); break;
             case 'gameOver': 
