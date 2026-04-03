@@ -516,6 +516,7 @@
             if (!isSingleplayerMode) return;
 
             if (singleplayerLives <= 0) {
+                singleplayerRestartButton.textContent = 'Play Again';
                 isSingleplayerMode = false;
                 setSingleplayerUiActive(false);
                 singleplayerEndActions.classList.remove('hidden');
@@ -525,9 +526,11 @@
             }
 
             if (singleplayerRound < singleplayerMaxRounds) {
+                singleplayerRestartButton.textContent = 'Next';
                 singleplayerRound += 1;
                 startSingleplayerRound();
             } else {
+                singleplayerRestartButton.textContent = 'Play Again';
                 isSingleplayerMode = false;
                 setSingleplayerUiActive(false);
                 singleplayerEndActions.classList.remove('hidden');
@@ -538,6 +541,7 @@
 
     function startSingleplayerMode() {
         isSingleplayerMode = true;
+        singleplayerRestartButton.textContent = 'Next';
         singleplayerRound = 1;
         singleplayerMaxRounds = clampSingleplayerSetting(singleplayerRoundsSetting.value, 1, 10, 3);
         singleplayerLives = clampSingleplayerSetting(singleplayerLivesSetting.value, 1, 10, 3);
