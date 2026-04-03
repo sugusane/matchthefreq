@@ -121,6 +121,36 @@
     const singleplayerRestartButton = document.getElementById('practice-restart-button');
     const singleplayerBackMenuButton = document.getElementById('practice-back-menu-button');
     const MAX_USERNAME_CHARS = 20;
+    const USERNAME_COOKIE_KEY = 'mtf_username';
+    const USERNAME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+    function setCookie(name, value, maxAgeSeconds) {
+        document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; samesite=lax`;
+    }
+
+    function getCookie(name) {
+        const prefix = `${name}=`;
+        const cookies = document.cookie ? document.cookie.split(';') : [];
+        for (let index = 0; index < cookies.length; index += 1) {
+            const entry = cookies[index].trim();
+            if (entry.startsWith(prefix)) {
+                return decodeURIComponent(entry.slice(prefix.length));
+            }
+        }
+        return '';
+    }
+
+    function applyLoginUsername(username) {
+        const normalizedUsername = String(username || '').trim().slice(0, MAX_USERNAME_CHARS);
+        if (!normalizedUsername) return;
+
+        initAudio();
+        sendMessage('login', { username: normalizedUsername });
+        setCookie(USERNAME_COOKIE_KEY, normalizedUsername, USERNAME_COOKIE_MAX_AGE_SECONDS);
+        welcomeMessage.textContent = `Welcome, ${normalizedUsername}!`;
+        myUsernameDisplay.textContent = normalizedUsername;
+        switchScreen('mainMenu');
+    }
 
     // --- AUDIO ---
     function initAudio() {
@@ -634,7 +664,18 @@
         usernameInput.value = usernameInput.value.slice(0, MAX_USERNAME_CHARS);
     });
 
-    loginButton.addEventListener('click', () => { const username = usernameInput.value.trim().slice(0, MAX_USERNAME_CHARS); if (username) { initAudio(); sendMessage('login', { username }); welcomeMessage.textContent = `Welcome, ${username}!`; myUsernameDisplay.textContent = username; switchScreen('mainMenu'); } });
+    loginButton.addEventListener('click', () => {
+        const username = usernameInput.value.trim().slice(0, MAX_USERNAME_CHARS);
+        if (username) {
+            applyLoginUsername(username);
+        }
+    });
+
+    const rememberedUsername = getCookie(USERNAME_COOKIE_KEY).trim().slice(0, MAX_USERNAME_CHARS);
+    if (rememberedUsername) {
+        usernameInput.value = rememberedUsername;
+        applyLoginUsername(rememberedUsername);
+    }
 
     volumeSlider.addEventListener('input', (e) => {
         setMasterVolume(parseInt(e.target.value, 10));
