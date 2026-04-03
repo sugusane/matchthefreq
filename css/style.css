@@ -805,11 +805,15 @@ button:disabled {
     left: 12px;
     bottom: 10px;
     z-index: 210;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 10px;
     color: rgba(170, 206, 194, 0.58);
     font-size: 0.78rem;
+}
+
+#login-screen.active ~ .site-meta {
+    display: flex;
 }
 
 .privacy-link {

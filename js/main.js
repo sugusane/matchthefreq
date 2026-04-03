@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
     // --- STATE ---
     let myPlayerId = null, opponent = null, isGuessingPhase = false, isHost = false;
     let targetFrequency = 100.0, renderedFrequency = 100.0;
@@ -9,17 +9,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let guessCountdownTimer = null;
     let masterVolume = 0.1;
     let hasSubmittedGuess = false;
-    let isPracticeMode = false;
-    let currentSoloMode = 'practice';
+    let isSingleplayerMode = false;
+    let currentSoloMode = 'singleplayer';
     let lastPointerMoveAt = 0;
     const POINTER_MOVE_THROTTLE_MS = navigator.maxTouchPoints > 0 ? 16 : 0;
-    let practiceRound = 0;
-    let practiceMaxRounds = 3;
-    let practiceLives = 3;
-    let practiceTargetFrequency = 0;
-    let practiceUserGuess = 0;
-    let practiceAdvanceTimer = null;
-    let practiceReturnTimer = null;
+    let singleplayerRound = 0;
+    let singleplayerMaxRounds = 3;
+    let singleplayerLives = 3;
+    let singleplayerTargetFrequency = 0;
+    let singleplayerUserGuess = 0;
+    let singleplayerAdvanceTimer = null;
+    let singleplayerReturnTimer = null;
     let previewOscillator = null, previewGain = null;
     let previewStopTimeout = null;
     let audioCtx, oscillator, gainNode;
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hard: [1000, 670],
     };
     let lastDraftSyncAt = 0;
-    let practiceListenMode = 'easy';
+    let singleplayerListenMode = 'easy';
 
     const screens = { 
         login: document.getElementById('login-screen'), 
@@ -52,13 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const usernameInput = document.getElementById('username-input'), loginButton = document.getElementById('login-button');
     const welcomeMessage = document.getElementById('welcome-message');
     const menuActions = document.getElementById('menu-actions');
-    const openPracticeButton = document.getElementById('open-practice-button');
-    const practicePanel = document.getElementById('practice-panel');
-    const practiceListenModeSetting = document.getElementById('practice-listen-mode-setting');
-    const practiceRoundsSetting = document.getElementById('practice-rounds-setting');
-    const practiceLivesSetting = document.getElementById('practice-lives-setting');
-    const startPracticeButton = document.getElementById('start-practice-button');
-    const backFromPracticeButton = document.getElementById('back-from-practice-button');
+    const openSingleplayerButton = document.getElementById('open-practice-button');
+    const singleplayerPanel = document.getElementById('practice-panel');
+    const singleplayerListenModeSetting = document.getElementById('practice-listen-mode-setting');
+    const singleplayerRoundsSetting = document.getElementById('practice-rounds-setting');
+    const singleplayerLivesSetting = document.getElementById('practice-lives-setting');
+    const startSingleplayerButton = document.getElementById('start-practice-button');
+    const backFromSingleplayerButton = document.getElementById('back-from-practice-button');
     const createRoomPanel = document.getElementById('create-room-panel');
     const joinRoomPanel = document.getElementById('join-room-panel');
     const openCreateRoomButton = document.getElementById('open-create-room-button');
@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomPasswordInput = document.getElementById('room-password-input');
     const roomPasswordEnabled = document.getElementById('room-password-enabled');
     const createRoomPasswordInput = document.getElementById('create-room-password-input');
-    const createRoomSizeSetting = document.getElementById('create-room-size-setting');
     const volumeSlider = document.getElementById('volume-slider');
     const volumeValue = document.getElementById('volume-value');
     const menuTestSoundButton = document.getElementById('menu-test-sound-button');
@@ -103,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const frequencySlider = document.getElementById('frequency-slider');
     const guessingPhase = document.getElementById('guessing-phase');
     const submitGuessButton = document.getElementById('submit-guess-button');
-    const exitPracticeButton = document.getElementById('exit-practice-button');
+    const exitSingleplayerButton = document.getElementById('exit-practice-button');
     const statusOverlay = document.getElementById('status-overlay');
     const statusText = document.getElementById('status-text');
     const toast = document.getElementById('toast');
@@ -118,9 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultOpponentGuess = document.getElementById('result-opponent-guess');
     const yourResultRow = document.querySelector('.your-result');
     const opponentResultRow = document.querySelector('.opponent-result');
-    const practiceEndActions = document.getElementById('practice-end-actions');
-    const practiceRestartButton = document.getElementById('practice-restart-button');
-    const practiceBackMenuButton = document.getElementById('practice-back-menu-button');
+    const singleplayerEndActions = document.getElementById('practice-end-actions');
+    const singleplayerRestartButton = document.getElementById('practice-restart-button');
+    const singleplayerBackMenuButton = document.getElementById('practice-back-menu-button');
     const MAX_USERNAME_CHARS = 20;
 
     // --- AUDIO ---
@@ -224,12 +223,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI & GAME FLOW ---
     function showMainMenuView(view) {
         menuActions.classList.toggle('hidden', view !== 'actions');
-        practicePanel.classList.toggle('hidden', view !== 'practice');
+        singleplayerPanel.classList.toggle('hidden', view !== 'singleplayer');
         createRoomPanel.classList.toggle('hidden', view !== 'create');
         joinRoomPanel.classList.toggle('hidden', view !== 'join');
     }
 
-    function clampPracticeSetting(value, min, max, fallback) {
+    function clampSingleplayerSetting(value, min, max, fallback) {
         const numericValue = parseInt(value, 10);
         if (!Number.isFinite(numericValue)) return fallback;
         return Math.max(min, Math.min(max, numericValue));
@@ -248,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         createRoomPasswordInput.value = '';
         roomPasswordEnabled.checked = false;
         createRoomPasswordInput.disabled = true;
-        practiceEndActions.classList.add('hidden');
+        singleplayerEndActions.classList.add('hidden');
     }
 
     function getSoloTargetFrequency() {
@@ -277,71 +276,71 @@ document.addEventListener('DOMContentLoaded', () => {
         isGuessingPhase = true;
     }
 
-    function setPracticeUiActive(isActive) {
-        exitPracticeButton.classList.toggle('hidden', !isActive);
+    function setSingleplayerUiActive(isActive) {
+        exitSingleplayerButton.classList.toggle('hidden', !isActive);
         if (isActive) {
-            practiceEndActions.classList.add('hidden');
+            singleplayerEndActions.classList.add('hidden');
         }
     }
 
-    function clearPracticeAdvanceTimer() {
-        if (practiceAdvanceTimer) {
-            clearTimeout(practiceAdvanceTimer);
-            practiceAdvanceTimer = null;
+    function clearSingleplayerAdvanceTimer() {
+        if (singleplayerAdvanceTimer) {
+            clearTimeout(singleplayerAdvanceTimer);
+            singleplayerAdvanceTimer = null;
         }
-        if (practiceReturnTimer) {
-            clearTimeout(practiceReturnTimer);
-            practiceReturnTimer = null;
+        if (singleplayerReturnTimer) {
+            clearTimeout(singleplayerReturnTimer);
+            singleplayerReturnTimer = null;
         }
     }
 
-    function leavePracticeMode() {
-        clearPracticeAdvanceTimer();
+    function leaveSingleplayerMode() {
+        clearSingleplayerAdvanceTimer();
         cleanupActiveGameAudio();
-        isPracticeMode = false;
-        setPracticeUiActive(false);
-        practiceEndActions.classList.add('hidden');
+        isSingleplayerMode = false;
+        setSingleplayerUiActive(false);
+        singleplayerEndActions.classList.add('hidden');
         switchScreen('mainMenu');
         showMainMenuView('actions');
         showToast('Left singleplayer mode.', 1600);
     }
 
-    function startPracticeRound() {
+    function startSingleplayerRound() {
         cleanupActiveGameAudio();
         switchScreen('game');
-        setPracticeUiActive(true);
+        setSingleplayerUiActive(true);
         opponentUsernameDisplay.textContent = 'Singleplayer';
         updateLives(opponentLivesContainer, 0);
-        updateLives(myLivesContainer, practiceLives);
-        roundIndicator.textContent = `${practiceRound}/${practiceMaxRounds}`;
+        updateLives(myLivesContainer, singleplayerLives);
+        roundIndicator.textContent = `${singleplayerRound}/${singleplayerMaxRounds}`;
 
         switchPhase('prep');
         resetGuessSubmissionState();
-        practiceTargetFrequency = getSoloTargetFrequency();
+        singleplayerTargetFrequency = getSoloTargetFrequency();
         const prepMs = 3000;
-        const listenMs = resolveListenDuration(practiceListenMode);
+        const listenMs = resolveListenDuration(singleplayerListenMode);
         const guessMs = 30000;
 
         prepTimerDisplay.textContent = 3;
         startSecondCountdown('prepCountdownTimer', prepTimerDisplay, prepMs, () => {
             switchPhase('listening');
-            listenVisualizer.start(practiceTargetFrequency);
-            playTone(practiceTargetFrequency);
+            listenVisualizer.start(singleplayerTargetFrequency);
+            playTone(singleplayerTargetFrequency);
             startSecondCountdown('listeningCountdownTimer', listenTimerDisplay, listenMs, () => {
                 switchPhase('guessing');
                 resetGuessSubmissionState();
                 guessVisualizer.start(renderedFrequency);
                 playTone(renderedFrequency);
                 startSecondCountdown('guessCountdownTimer', guessTimerDisplay, guessMs, () => {
-                    if (!hasSubmittedGuess) finishPracticeGuess(true);
+                    if (!hasSubmittedGuess) finishSingleplayerGuess(true);
                 });
                 isGuessingPhase = true;
             });
         });
     }
 
-    function finishPracticeGuess(wasTimedOut = false) {
-        if (!isPracticeMode) return;
+    function finishSingleplayerGuess(wasTimedOut = false) {
+        if (!isSingleplayerMode) return;
 
         hasSubmittedGuess = true;
         submitGuessButton.disabled = true;
@@ -353,64 +352,64 @@ document.addEventListener('DOMContentLoaded', () => {
         stopPreviewTone();
         listenVisualizer.stop();
         guessVisualizer.stop();
-        practiceUserGuess = targetFrequency;
+        singleplayerUserGuess = targetFrequency;
 
         if (wasTimedOut) {
-            practiceLives = Math.max(0, practiceLives - 1);
-            updateLives(myLivesContainer, practiceLives);
+            singleplayerLives = Math.max(0, singleplayerLives - 1);
+            updateLives(myLivesContainer, singleplayerLives);
         }
 
-        resultTarget.textContent = practiceTargetFrequency.toFixed(2);
-        resultYourGuess.textContent = practiceUserGuess.toFixed(2);
+        resultTarget.textContent = singleplayerTargetFrequency.toFixed(2);
+        resultYourGuess.textContent = singleplayerUserGuess.toFixed(2);
         resultOpponentGuess.textContent = '0.00';
         resultSummary.textContent = wasTimedOut
             ? 'Time ran out. You lost a life.'
-            : `You were ${formatHzDelta(practiceTargetFrequency - practiceUserGuess)} away.`;
+            : `You were ${formatHzDelta(singleplayerTargetFrequency - singleplayerUserGuess)} away.`;
         switchPhase('result');
-        showToast(wasTimedOut ? 'Time ran out.' : 'Practice round complete.', 1800);
+        showToast(wasTimedOut ? 'Time ran out.' : 'Singleplayer round complete.', 1800);
 
-        clearPracticeAdvanceTimer();
-        practiceAdvanceTimer = setTimeout(() => {
-            if (!isPracticeMode) return;
+        clearSingleplayerAdvanceTimer();
+        singleplayerAdvanceTimer = setTimeout(() => {
+            if (!isSingleplayerMode) return;
 
-            if (practiceLives <= 0) {
-                isPracticeMode = false;
-                setPracticeUiActive(false);
-                practiceEndActions.classList.remove('hidden');
+            if (singleplayerLives <= 0) {
+                isSingleplayerMode = false;
+                setSingleplayerUiActive(false);
+                singleplayerEndActions.classList.remove('hidden');
                 showStatus('Singleplayer over. Choose what to do next.', 1800);
                 return;
             }
 
-            if (practiceRound < practiceMaxRounds) {
-                practiceRound += 1;
-                startPracticeRound();
+            if (singleplayerRound < singleplayerMaxRounds) {
+                singleplayerRound += 1;
+                startSingleplayerRound();
             } else {
-                isPracticeMode = false;
-                setPracticeUiActive(false);
-                practiceEndActions.classList.remove('hidden');
+                isSingleplayerMode = false;
+                setSingleplayerUiActive(false);
+                singleplayerEndActions.classList.remove('hidden');
                 showStatus('Singleplayer complete. Choose next action.', 1800);
             }
         }, 4200);
     }
 
-    function startPracticeMode() {
-        isPracticeMode = true;
-        practiceRound = 1;
-        practiceMaxRounds = clampPracticeSetting(practiceRoundsSetting.value, 1, 20, 3);
-        practiceLives = clampPracticeSetting(practiceLivesSetting.value, 1, 10, 3);
-        practiceListenMode = String(practiceListenModeSetting?.value || 'easy');
-        clearPracticeAdvanceTimer();
+    function startSingleplayerMode() {
+        isSingleplayerMode = true;
+        singleplayerRound = 1;
+        singleplayerMaxRounds = clampSingleplayerSetting(singleplayerRoundsSetting.value, 1, 20, 3);
+        singleplayerLives = clampSingleplayerSetting(singleplayerLivesSetting.value, 1, 10, 3);
+        singleplayerListenMode = String(singleplayerListenModeSetting?.value || 'easy');
+        clearSingleplayerAdvanceTimer();
         cleanupActiveGameAudio();
         setMasterVolume(parseInt(volumeSlider.value, 10) || 10);
         switchScreen('game');
         myUsernameDisplay.textContent = 'You';
         opponentUsernameDisplay.textContent = 'Singleplayer';
-        updateLives(myLivesContainer, practiceLives);
+        updateLives(myLivesContainer, singleplayerLives);
         updateLives(opponentLivesContainer, 0);
-        roundIndicator.textContent = `1/${practiceMaxRounds}`;
-        setPracticeUiActive(true);
-        practiceEndActions.classList.add('hidden');
-        startPracticeRound();
+        roundIndicator.textContent = `1/${singleplayerMaxRounds}`;
+        setSingleplayerUiActive(true);
+        singleplayerEndActions.classList.add('hidden');
+        startSingleplayerRound();
     }
 
     function resetGuessSubmissionState() {
@@ -529,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let index = 0; index < lives; index++) {
             const heart = document.createElement('span');
             heart.className = 'heart';
-            heart.textContent = '♥';
+            heart.textContent = 'â™¥';
             container.appendChild(heart);
         }
     }
@@ -622,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function maybeSyncDraftGuess(force = false) {
-        if (isPracticeMode || !isGuessingPhase || hasSubmittedGuess || ws.readyState !== WebSocket.OPEN) return;
+        if (isSingleplayerMode || !isGuessingPhase || hasSubmittedGuess || ws.readyState !== WebSocket.OPEN) return;
         const now = Date.now();
         if (!force && now - lastDraftSyncAt < DRAFT_SYNC_INTERVAL_MS) return;
         lastDraftSyncAt = now;
@@ -653,16 +652,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showMainMenuView('create');
     });
 
-    openPracticeButton.addEventListener('click', () => {
-        currentSoloMode = 'practice';
-        showMainMenuView('practice');
+    openSingleplayerButton.addEventListener('click', () => {
+        currentSoloMode = 'singleplayer';
+        showMainMenuView('singleplayer');
     });
 
-    startPracticeButton.addEventListener('click', () => {
-        startPracticeMode();
+    startSingleplayerButton.addEventListener('click', () => {
+        startSingleplayerMode();
     });
 
-    backFromPracticeButton.addEventListener('click', () => {
+    backFromSingleplayerButton.addEventListener('click', () => {
         showMainMenuView('actions');
     });
 
@@ -678,8 +677,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showMainMenuView('actions');
     });
 
-    exitPracticeButton.addEventListener('click', () => {
-        leavePracticeMode();
+    exitSingleplayerButton.addEventListener('click', () => {
+        leaveSingleplayerMode();
     });
     
     roomPasswordEnabled.addEventListener('change', () => {
@@ -695,13 +694,12 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('Please set a room password or disable protection.', 2500);
             return;
         }
-        clampMaxPlayersInput(createRoomSizeSetting);
         showStatus('Creating room...', 900);
         sendMessage('createRoom', {
             password,
             settings: {
                 listenMode: 'easy',
-                maxPlayers: createRoomSizeSetting.value,
+                maxPlayers: 2,
             }
         });
     });
@@ -725,17 +723,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    createRoomSizeSetting.addEventListener('change', () => {
-        clampMaxPlayersInput(createRoomSizeSetting);
-    });
-
-    practiceRestartButton.addEventListener('click', () => {
+    singleplayerRestartButton.addEventListener('click', () => {
         statusOverlay.classList.remove('active');
-        startPracticeMode();
+        startSingleplayerMode();
     });
 
-    practiceBackMenuButton.addEventListener('click', () => {
-        leavePracticeMode();
+    singleplayerBackMenuButton.addEventListener('click', () => {
+        leaveSingleplayerMode();
     });
 
     maxPlayersSetting.addEventListener('change', () => {
@@ -774,8 +768,8 @@ document.addEventListener('DOMContentLoaded', () => {
     submitGuessButton.addEventListener('click', () => { 
         if (!isGuessingPhase) return;
         if (hasSubmittedGuess) return;
-        if (isPracticeMode) {
-            finishPracticeGuess();
+        if (isSingleplayerMode) {
+            finishSingleplayerGuess();
             return;
         }
         hasSubmittedGuess = true;
@@ -893,7 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showStatus(String(payload.message || 'Error'), 3000);
                 break;
             case 'statusUpdate': showStatus(payload.message); break;
-            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); practiceEndActions.classList.add('hidden'); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
+            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); singleplayerEndActions.classList.add('hidden'); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
             case 'roundPrepStart':
                 cleanupActiveGameAudio();
                 switchPhase('prep');
@@ -945,7 +939,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (payload.roundWinnerId) {
                     (payload.roundWinnerId === myPlayerId ? yourResultRow : opponentResultRow).classList.add('winner');
                 }
-                practiceEndActions.classList.add('hidden');
+                singleplayerEndActions.classList.add('hidden');
                 break;
             case 'setResult': updateLives(myLivesContainer, payload.yourLives); updateLives(opponentLivesContainer, payload.opponentLives); let txt = "This set is a draw!"; if (payload.setWinnerId) txt = payload.setWinnerId === myPlayerId ? "You won this set!" : "Opponent won this set."; showStatus(txt, 5000); break;
             case 'gameOver': 
@@ -969,3 +963,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
