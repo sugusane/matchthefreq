@@ -1,0 +1,14 @@
+{
+  "name": "frequency-match-game",
+  "version": "1.0.0",
+  "description": "A real-time 1v1 frequency matching game inspired by dialed.gg",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.5.0"
+  }
+}

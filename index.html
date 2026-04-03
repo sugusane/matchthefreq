@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match the Frequency</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="card panel">
+            <h1>Match the Frequency</h1>
+            <p class="subtitle">Tune by ear. Beat your rival.</p>
+            <input type="text" id="username-input" placeholder="Enter your name" maxlength="20">
+            <button id="login-button">Continue</button>
+        </div>
+    </div>
+
+    <!-- Main Menu Screen -->
+    <div id="main-menu-screen" class="screen">
+        <div class="main-menu-layout">
+            <aside class="menu-sidebar menu-sidebar-left panel">
+                <div class="sidebar-title">Update Log</div>
+                <ul class="sidebar-list">
+                    <li>Practice mode can now use custom lives and rounds.</li>
+                    <li>Exit Practice lets you leave mid-game without reloading.</li>
+                    <li>Main menu now has wider buttons and a better layout.</li>
+                    <li>Result screens show how close each guess was.</li>
+                </ul>
+                <div class="sidebar-warning">
+                    Warning: audio can get loud. Start around 10-20% volume and lower it if needed.
+                </div>
+            </aside>
+
+            <div class="card panel">
+                <h1 id="welcome-message">Welcome!</h1>
+                <p class="menu-helper">Choose what you want to do</p>
+
+                <div class="volume-control">
+                    <label for="volume-slider">Volume: <span id="volume-value">10%</span></label>
+                    <input type="range" id="volume-slider" min="0" max="100" step="1" value="10">
+                    <button id="menu-test-sound-button" class="volume-test-button" type="button">Test Sound</button>
+                </div>
+
+                <div id="menu-actions" class="menu-actions">
+                    <button id="open-practice-button">Practice Mode</button>
+                    <button id="open-create-room-button">Create Room</button>
+                    <button id="open-join-room-button">Join Game</button>
+                </div>
+
+                <div id="practice-panel" class="menu-panel hidden">
+                    <div class="panel-title">Practice Setup</div>
+                    <div class="setting">
+                        <label for="practice-rounds-setting">Rounds:</label>
+                        <input type="number" id="practice-rounds-setting" value="3" min="1" max="20">
+                    </div>
+                    <div class="setting">
+                        <label for="practice-lives-setting">Lives:</label>
+                        <input type="number" id="practice-lives-setting" value="3" min="1" max="10">
+                    </div>
+                    <div class="menu-panel-actions">
+                        <button id="start-practice-button">Start Practice</button>
+                        <button id="back-from-practice-button" class="ghost-button">Back</button>
+                    </div>
+                </div>
+
+                <div id="create-room-panel" class="menu-panel hidden">
+                    <div class="panel-title">Create A New Room</div>
+                    <label class="option-row">
+                        <input type="checkbox" id="room-password-enabled">
+                        <span>Protect new room with password</span>
+                    </label>
+                    <input type="password" id="create-room-password-input" placeholder="Set room password (optional)" disabled>
+                    <div class="menu-panel-actions">
+                        <button id="create-room-button">Create Room</button>
+                        <button id="back-from-create-button" class="ghost-button">Back</button>
+                    </div>
+                </div>
+
+                <div id="join-room-panel" class="menu-panel hidden">
+                    <div class="panel-title">Join Existing Room</div>
+                    <div class="join-room-container">
+                        <input type="text" id="room-code-input" placeholder="Enter Room Code">
+                        <input type="password" id="room-password-input" placeholder="Room Password (optional)">
+                        <div class="menu-panel-actions">
+                            <button id="join-room-button">Join Room</button>
+                            <button id="back-from-join-button" class="ghost-button">Back</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="menu-sidebar menu-sidebar-right panel">
+                <div class="sidebar-title">How It Works</div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Lives</div>
+                    <div class="sidebar-text">Each player starts with a set number of lives. Win a set, and the other side loses one life.</div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Rounds</div>
+                    <div class="sidebar-text">Each set is made of several rounds. Every round gives you a target sound to match by ear.</div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Rules</div>
+                    <div class="sidebar-text">Listen during the preview, then guess the frequency before the timer ends. Faster and closer guesses win the round.</div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Win Condition</div>
+                    <div class="sidebar-text">The player who keeps more lives after the set finishes wins the match.</div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <div id="lobby-screen" class="screen">
+        <div class="card panel">
+            <h1>Lobby</h1>
+            <div class="room-info">Room Code: <span id="room-code-display"></span></div>
+            <div id="player-list"></div>
+            <div id="game-settings" class="owner-only">
+                <div class="setting">
+                    <label for="rounds-setting">Rounds per Set:</label>
+                    <input type="number" id="rounds-setting" value="3" min="1" max="10">
+                </div>
+                <div class="setting">
+                    <label for="lives-setting">Lives:</label>
+                    <input type="number" id="lives-setting" value="3" min="1" max="5">
+                </div>
+                <div class="setting">
+                    <label for="listen-mode-setting">Listen Mode:</label>
+                    <select id="listen-mode-setting">
+                        <option value="noob">Noob - 5.0s</option>
+                        <option value="easy" selected>Easy - 2.5s</option>
+                        <option value="hard">Hard - randomized</option>
+                    </select>
+                </div>
+            </div>
+            <button id="start-game-button" class="owner-only">Start Game</button>
+            <button id="leave-lobby-button">Leave Room</button>
+            <div id="waiting-for-host-text">Waiting for host to start the game...</div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="game-header">
+            <div class="player-hud">
+                <span id="my-username">You</span>
+                <div id="my-lives" class="lives-container"></div>
+            </div>
+            <div class="round-counter">
+                <span id="round-indicator"></span>
+            </div>
+            <div class="player-hud opponent-hud">
+                <div id="opponent-lives" class="lives-container"></div>
+                <span id="opponent-username">Opponent</span>
+            </div>
+        </div>
+
+        <div class="game-stage">
+            <div class="game-card">
+                <div id="prep-phase" class="phase">
+                    <div class="prep-label">Get Ready</div>
+                    <div id="prep-timer" class="prep-timer">3</div>
+                </div>
+
+                <div id="listening-phase" class="phase">
+                    <canvas id="visualizer-canvas-listen"></canvas>
+                    <div class="listening-text">Listen...</div>
+                    <div id="listen-timer" class="timer-text">5</div>
+                </div>
+
+                <div id="guessing-phase" class="phase">
+                    <canvas id="visualizer-canvas-guess"></canvas>
+                    <div id="guess-value" class="frequency-text">100.00 Hz</div>
+                    <div id="guess-timer" class="guess-timer">30</div>
+                    <div id="hurry-up-notice" class="hurry-up-notice">Opponent submitted. 5 seconds left!</div>
+                    <div class="freq-controls">
+                        <input type="range" id="frequency-slider" min="100" max="1000" step="0.1" value="100" aria-label="Frequency slider">
+                        <div class="drag-hint">Drag up/down anywhere on card for fine tuning</div>
+                    </div>
+                    <button id="submit-guess-button">Submit</button>
+                </div>
+
+                <div id="result-phase" class="phase">
+                    <div id="result-summary" class="result-summary">Close result</div>
+                    <div class="result-row">
+                        <div class="result-label">TARGET</div>
+                        <div id="result-target" class="result-value">0.00</div>
+                    </div>
+                    <div class="result-row your-result">
+                        <div class="result-label">YOU</div>
+                        <div id="result-your-guess" class="result-value">0.00</div>
+                    </div>
+                    <div class="result-row opponent-result">
+                        <div class="result-label">OPPONENT</div>
+                        <div id="result-opponent-guess" class="result-value">0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <aside id="game-volume-panel" class="game-volume-panel" aria-label="In-game volume control">
+                <div class="game-volume-title">Volume</div>
+                <input type="range" id="game-volume-slider" min="0" max="100" step="1" value="10" aria-label="Game volume slider">
+                <div id="game-volume-value" class="game-volume-value">10%</div>
+                <button id="exit-practice-button" class="ghost-button practice-exit-button hidden" type="button">Exit Practice</button>
+            </aside>
+        </div>
+        
+        <div id="status-overlay" class="status-overlay">
+            <div id="status-text"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" aria-live="polite"></div>
+
+    <script src="js/visualizer.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
