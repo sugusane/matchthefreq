@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const WebSocket = require('ws');
 
 const PUBLIC_DIR = __dirname;
-const ALLOWED_FILE_EXTENSIONS = new Set(['.html', '.js', '.css']);
+const ALLOWED_FILE_EXTENSIONS = new Set(['.html', '.js', '.css', '.svg', '.ico', '.png']);
 const MAX_USERNAME_LENGTH = 20;
 const MAX_ROOM_CODE_LENGTH = 6;
 const MAX_PASSWORD_LENGTH = 32;
@@ -22,6 +22,7 @@ const LISTEN_MODE_DURATIONS = {
 const GUESS_PHASE_MS = 30000;
 const NORMAL_HURRY_UP_MS = 5000;
 const HARD_HURRY_UP_MS = 2500;
+const SUBMIT_GRACE_MS = 1500;
 
 // 1. Create HTTP Server to serve static files
 const server = http.createServer((req, res) => {
@@ -68,6 +69,9 @@ const server = http.createServer((req, res) => {
         '.html': 'text/html; charset=utf-8',
         '.js': 'text/javascript; charset=utf-8',
         '.css': 'text/css; charset=utf-8',
+        '.svg': 'image/svg+xml',
+        '.ico': 'image/x-icon',
+        '.png': 'image/png',
     };
     const contentType = mimeTypes[extname] || 'application/octet-stream';
 
@@ -190,7 +194,7 @@ function handleMessage(playerId, type, payload) {
     const player = players[playerId];
     if (!player) return;
 
-    const ALLOWED_TYPES = new Set(['login', 'createRoom', 'joinRoom', 'updateSettings', 'startGame', 'leaveRoom', 'submitGuess']);
+    const ALLOWED_TYPES = new Set(['login', 'createRoom', 'joinRoom', 'updateSettings', 'startGame', 'leaveRoom', 'submitGuess', 'updateDraftGuess']);
     if (!ALLOWED_TYPES.has(type)) {
         sendMessage(player.ws, 'error', { message: 'Unsupported action.' });
         return;
@@ -231,6 +235,7 @@ function handleMessage(playerId, type, payload) {
                 settings: {
                     lives: 3,
                     rounds: 3,
+                    maxPlayers: clampInteger(payload?.settings?.maxPlayers, 2, 4, 2),
                     listenMode: resolveListenMode(payload?.settings?.listenMode, payload?.settings?.hardMode)
                 },
                 gameState: null
@@ -249,7 +254,7 @@ function handleMessage(playerId, type, payload) {
             const requestedRoomCode = sanitizeRoomCode(payload?.roomCode);
             const requestedPassword = sanitizePassword(payload?.password);
             const room = rooms[requestedRoomCode];
-            if (room && room.players.length < 2) {
+            if (room && room.players.length < room.settings.maxPlayers) {
                 if (room.passwordHash) {
                     const submittedHash = hashPassword(requestedPassword, room.passwordSalt);
                     if (submittedHash !== room.passwordHash) {
@@ -275,6 +280,8 @@ function handleMessage(playerId, type, payload) {
             if (playerRoom && playerRoom.ownerId === playerId) {
                 playerRoom.settings.lives = clampInteger(payload?.lives, 1, 5, playerRoom.settings.lives);
                 playerRoom.settings.rounds = clampInteger(payload?.rounds, 1, 10, playerRoom.settings.rounds);
+                const requestedMaxPlayers = clampInteger(payload?.maxPlayers, 2, 4, playerRoom.settings.maxPlayers);
+                playerRoom.settings.maxPlayers = Math.max(requestedMaxPlayers, playerRoom.players.length);
                 playerRoom.settings.listenMode = resolveListenMode(payload?.listenMode, payload?.hardMode, playerRoom.settings.listenMode);
                 updateLobby(player.roomCode);
             }
@@ -282,7 +289,17 @@ function handleMessage(playerId, type, payload) {
 
         case 'startGame':
             const roomToStart = rooms[player.roomCode];
-            if (roomToStart && roomToStart.ownerId === playerId && roomToStart.players.length === 2 && !roomToStart.gameState) {
+            if (roomToStart && roomToStart.ownerId === playerId && !roomToStart.gameState) {
+                if (roomToStart.players.length > 2) {
+                    sendMessage(player.ws, 'error', { message: 'Current match mode supports 2 active players. Set max players to 2 or ask others to leave.' });
+                    break;
+                }
+
+                if (roomToStart.players.length < 2) {
+                    sendMessage(player.ws, 'error', { message: 'Need at least 2 players to start.' });
+                    break;
+                }
+
                 createGameSession(roomToStart);
             }
             break;
@@ -300,7 +317,7 @@ function handleMessage(playerId, type, payload) {
                     break;
                 }
 
-                if (Date.now() > session.guessingEndsAt) {
+                if (Date.now() > session.guessingEndsAt + SUBMIT_GRACE_MS) {
                     sendMessage(player.ws, 'error', { message: 'Guess window has closed.' });
                     break;
                 }
@@ -313,6 +330,16 @@ function handleMessage(playerId, type, payload) {
                     } else {
                         applyHurryUpWindow(sessionRoom, session, playerId, opponentId);
                     }
+                }
+            }
+            break;
+
+        case 'updateDraftGuess':
+            const draftRoom = rooms[player.roomCode];
+            if (draftRoom && draftRoom.gameState) {
+                const draftSession = draftRoom.gameState;
+                if (draftSession.phase === 'guessing' && draftSession.guesses[playerId] === null) {
+                    draftSession.lastKnownGuesses[playerId] = clampNumber(payload?.frequency, 100, 1000, 550);
                 }
             }
             break;
@@ -358,6 +385,7 @@ function createGameSession(room) {
         targetFrequency: null,
         listenMs: 0,
         guesses: { [player1Id]: null, [player2Id]: null },
+        lastKnownGuesses: { [player1Id]: 550, [player2Id]: 550 },
         settings: room.settings
     };
     room.gameState = session;
@@ -390,6 +418,8 @@ function startNewRound(room) {
     session.guessingEndsAt = 0;
     session.guesses[session.player1] = null;
     session.guesses[session.player2] = null;
+    session.lastKnownGuesses[session.player1] = 550;
+    session.lastKnownGuesses[session.player2] = 550;
 
     broadcastToRoom(room.id, 'roundPrepStart', {
         round: session.currentRound,
@@ -464,8 +494,12 @@ function evaluateRound(room) {
     const p2Id = session.player2;
     const target = session.targetFrequency;
 
-    const p1Guess = Number.isFinite(session.guesses[p1Id]) ? session.guesses[p1Id] : null;
-    const p2Guess = Number.isFinite(session.guesses[p2Id]) ? session.guesses[p2Id] : null;
+    const p1Guess = Number.isFinite(session.guesses[p1Id])
+        ? session.guesses[p1Id]
+        : (Number.isFinite(session.lastKnownGuesses[p1Id]) ? session.lastKnownGuesses[p1Id] : null);
+    const p2Guess = Number.isFinite(session.guesses[p2Id])
+        ? session.guesses[p2Id]
+        : (Number.isFinite(session.lastKnownGuesses[p2Id]) ? session.lastKnownGuesses[p2Id] : null);
     const p1Diff = p1Guess === null ? Number.POSITIVE_INFINITY : Math.abs(target - p1Guess);
     const p2Diff = p2Guess === null ? Number.POSITIVE_INFINITY : Math.abs(target - p2Guess);
 
@@ -474,25 +508,25 @@ function evaluateRound(room) {
 
     const resultData = {
         roundWinnerId: roundWinner,
-        yourGuess: p1Guess ?? 0,
-        opponentGuess: p2Guess ?? 0,
+        yourGuess: p1Guess ?? 550,
+        opponentGuess: p2Guess ?? 550,
         target: target,
         yourSetScore: session.setScores[p1Id],
         opponentSetScore: session.setScores[p2Id],
-        yourTimedOut: p1Guess === null,
-        opponentTimedOut: p2Guess === null,
+        yourTimedOut: session.guesses[p1Id] === null,
+        opponentTimedOut: session.guesses[p2Id] === null,
     };
     sendMessage(players[p1Id].ws, 'roundResult', resultData);
 
     const resultData2 = {
         roundWinnerId: roundWinner,
-        yourGuess: p2Guess ?? 0,
-        opponentGuess: p1Guess ?? 0,
+        yourGuess: p2Guess ?? 550,
+        opponentGuess: p1Guess ?? 550,
         target: target,
         yourSetScore: session.setScores[p2Id],
         opponentSetScore: session.setScores[p1Id],
-        yourTimedOut: p2Guess === null,
-        opponentTimedOut: p1Guess === null,
+        yourTimedOut: session.guesses[p2Id] === null,
+        opponentTimedOut: session.guesses[p1Id] === null,
     };
     sendMessage(players[p2Id].ws, 'roundResult', resultData2);
 

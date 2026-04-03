@@ -9,15 +9,25 @@ function createVisualizer(canvasId, isNoisy = false) {
     let audioFrequency = 440;
     let time = 0;
     let noiseDrift = 0;
+    let lowPowerMode = false;
+    let lastFrameAt = 0;
 
     function resizeCanvas() {
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
+        lowPowerMode = window.matchMedia('(max-width: 768px)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    function draw() {
+    function draw(now = 0) {
+        const frameBudget = lowPowerMode ? (1000 / 24) : (1000 / 60);
+        if (now - lastFrameAt < frameBudget) {
+            animationFrameId = requestAnimationFrame(draw);
+            return;
+        }
+        lastFrameAt = now;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const width = canvas.width;
@@ -28,29 +38,34 @@ function createVisualizer(canvasId, isNoisy = false) {
         const baseAmplitude = (height * 0.14) + normalized * (height * 0.2);
 
         const bg = ctx.createLinearGradient(0, 0, 0, height);
-        bg.addColorStop(0, 'rgba(4, 17, 14, 0.25)');
-        bg.addColorStop(1, 'rgba(1, 4, 10, 0.55)');
+        bg.addColorStop(0, lowPowerMode ? 'rgba(4, 17, 14, 0.2)' : 'rgba(4, 17, 14, 0.25)');
+        bg.addColorStop(1, lowPowerMode ? 'rgba(1, 4, 10, 0.46)' : 'rgba(1, 4, 10, 0.55)');
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, width, height);
 
-        ctx.strokeStyle = 'rgba(248, 255, 196, 0.1)';
-        ctx.lineWidth = 1;
-        const gridStep = Math.max(24, Math.floor(width / 14));
-        for (let gx = 0; gx <= width; gx += gridStep) {
-            ctx.beginPath();
-            ctx.moveTo(gx, 0);
-            ctx.lineTo(gx, height);
-            ctx.stroke();
+        if (!lowPowerMode) {
+            ctx.strokeStyle = 'rgba(248, 255, 196, 0.1)';
+            ctx.lineWidth = 1;
+            const gridStep = Math.max(24, Math.floor(width / 14));
+            for (let gx = 0; gx <= width; gx += gridStep) {
+                ctx.beginPath();
+                ctx.moveTo(gx, 0);
+                ctx.lineTo(gx, height);
+                ctx.stroke();
+            }
+
+            for (let gy = 0; gy <= height; gy += 26) {
+                ctx.beginPath();
+                ctx.moveTo(0, gy);
+                ctx.lineTo(width, gy);
+                ctx.stroke();
+            }
         }
 
-        for (let gy = 0; gy <= height; gy += 26) {
-            ctx.beginPath();
-            ctx.moveTo(0, gy);
-            ctx.lineTo(width, gy);
-            ctx.stroke();
-        }
-
-        const layers = [
+        const layers = lowPowerMode ? [
+            { width: 3, alpha: 0.38, shift: 0.08, colorA: '#31f3ff', colorB: '#ffe260' },
+            { width: 1.5, alpha: 0.9, shift: 0, colorA: '#a5fff0', colorB: '#ffda6a' }
+        ] : [
             { width: 8, alpha: 0.14, shift: 0.24, colorA: '#00ffd0', colorB: '#f8ff6f' },
             { width: 4, alpha: 0.36, shift: 0.12, colorA: '#31f3ff', colorB: '#ffe260' },
             { width: 2, alpha: 1, shift: 0, colorA: '#a5fff0', colorB: '#ffda6a' }
@@ -63,7 +78,8 @@ function createVisualizer(canvasId, isNoisy = false) {
             gradient.addColorStop(1, layer.colorA);
 
             ctx.beginPath();
-            for (let x = 0; x <= width; x++) {
+            const sampleStep = lowPowerMode ? 3 : 1;
+            for (let x = 0; x <= width; x += sampleStep) {
                 const t = x / width;
                 const wobble = Math.sin((x * 0.02) + time * 2 + layer.shift * 8) * (baseAmplitude * 0.08);
                 const harmonic = Math.sin((t * Math.PI * 2 * freqFactor) + time + layer.shift * 4) * baseAmplitude;
@@ -83,7 +99,7 @@ function createVisualizer(canvasId, isNoisy = false) {
             ctx.lineWidth = layer.width;
             ctx.globalAlpha = layer.alpha;
             ctx.strokeStyle = gradient;
-            ctx.shadowBlur = 14;
+            ctx.shadowBlur = lowPowerMode ? 0 : 14;
             ctx.shadowColor = '#41ffd0';
             ctx.stroke();
         });
@@ -91,8 +107,8 @@ function createVisualizer(canvasId, isNoisy = false) {
         ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
 
-        time += 0.028;
-        noiseDrift += 0.05;
+        time += lowPowerMode ? 0.02 : 0.028;
+        noiseDrift += lowPowerMode ? 0.03 : 0.05;
         animationFrameId = requestAnimationFrame(draw);
     }
 

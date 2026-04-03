@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match the Frequency</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 <body>
     <div class="bg-grid"></div>
@@ -70,6 +71,10 @@
 
                 <div id="create-room-panel" class="menu-panel hidden">
                     <div class="panel-title">Create A New Room</div>
+                    <div class="setting">
+                        <label for="create-room-size-setting">Max Players:</label>
+                        <input type="number" id="create-room-size-setting" value="2" min="2" max="4">
+                    </div>
                     <label class="option-row">
                         <input type="checkbox" id="room-password-enabled">
                         <span>Protect new room with password</span>
@@ -129,6 +134,10 @@
                 <div class="setting">
                     <label for="lives-setting">Lives:</label>
                     <input type="number" id="lives-setting" value="3" min="1" max="5">
+                </div>
+                <div class="setting">
+                    <label for="max-players-setting">Max Players:</label>
+                    <input type="number" id="max-players-setting" value="2" min="2" max="4">
                 </div>
                 <div class="setting">
                     <label for="listen-mode-setting">Listen Mode:</label>
@@ -217,6 +226,21 @@
     </div>
 
     <div id="toast" class="toast" aria-live="polite"></div>
+
+    <footer class="site-meta">
+        <button id="privacy-toggle" class="privacy-link" type="button">Privacy Policy</button>
+        <span class="site-credit">wirasena</span>
+    </footer>
+
+    <div id="privacy-modal" class="privacy-modal" aria-hidden="true">
+        <div class="privacy-modal-card panel">
+            <h2>Privacy Policy</h2>
+            <p>This game stores only gameplay data needed for active rooms (username, room code, settings, and round guesses).</p>
+            <p>No payment data is collected. Room data is removed after players leave or the room is closed.</p>
+            <p>By playing, you agree to fair-use limits that protect the game from spam and abuse.</p>
+            <button id="privacy-close" class="ghost-button" type="button">Close</button>
+        </div>
+    </div>
 
     <script src="js/visualizer.js"></script>
     <script src="js/main.js"></script>

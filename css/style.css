@@ -151,6 +151,7 @@ body {
     background: var(--panel);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset, 0 16px 48px rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(3px);
+    animation: riseIn 340ms ease;
 }
 
 h1 {
@@ -547,6 +548,7 @@ button:disabled {
     position: relative;
     overflow: hidden;
     box-shadow: 0 14px 42px rgba(0, 0, 0, 0.56);
+    animation: riseIn 340ms ease;
 }
 
 .game-volume-panel {
@@ -783,6 +785,76 @@ button:disabled {
     transform: translateX(-50%) translateY(0);
 }
 
+.site-meta {
+    position: fixed;
+    left: 12px;
+    bottom: 10px;
+    z-index: 210;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: rgba(170, 206, 194, 0.58);
+    font-size: 0.78rem;
+}
+
+.privacy-link {
+    width: auto;
+    padding: 5px 8px;
+    border: 1px solid rgba(170, 206, 194, 0.26);
+    border-radius: 8px;
+    background: rgba(7, 18, 26, 0.45);
+    color: rgba(170, 206, 194, 0.72);
+    box-shadow: none;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.privacy-link:hover {
+    transform: none;
+    filter: none;
+    background: rgba(7, 18, 26, 0.72);
+}
+
+.site-credit {
+    opacity: 0.6;
+    letter-spacing: 0.06em;
+}
+
+.privacy-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 9, 18, 0.68);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 240;
+    padding: 16px;
+}
+
+.privacy-modal.active {
+    display: flex;
+}
+
+.privacy-modal-card {
+    width: min(92vw, 520px);
+    text-align: left;
+    padding: 22px;
+}
+
+.privacy-modal-card h2 {
+    margin-bottom: 12px;
+    color: var(--accent-2);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.8rem;
+}
+
+.privacy-modal-card p {
+    margin-bottom: 10px;
+    color: var(--text-dim);
+    line-height: 1.55;
+}
+
 #status-text {
     background: rgba(5, 14, 22, 0.9);
     border: 1px solid var(--panel-border);
@@ -829,7 +901,46 @@ button:disabled {
     to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes riseIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bg-grid {
+        animation: none;
+    }
+
+    .panel,
+    .game-card,
+    .screen {
+        animation: none;
+    }
+
+    button,
+    .toast,
+    .hurry-up-notice {
+        transition: none;
+    }
+}
+
 @media (max-width: 700px) {
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .bg-grid {
+        opacity: 0.38;
+        animation: none;
+    }
+
     .main-menu-layout {
         width: min(95vw, 560px);
         grid-template-columns: 1fr;
@@ -860,6 +971,7 @@ button:disabled {
 
     .game-card {
         height: min(74vh, 620px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.36);
     }
 
     .game-volume-panel {
@@ -888,5 +1000,25 @@ button:disabled {
     .freq-controls {
         bottom: 122px;
         width: 90%;
+    }
+
+    .panel {
+        backdrop-filter: none;
+    }
+
+    #visualizer-canvas-guess {
+        filter: none;
+        opacity: 0.74;
+    }
+
+    .site-meta {
+        left: 8px;
+        bottom: 8px;
+        gap: 8px;
+    }
+
+    .privacy-link {
+        font-size: 0.72rem;
+        padding: 5px 7px;
     }
 }

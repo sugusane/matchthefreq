@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_GUESS_FREQUENCY = 550;
     const DRAG_SENSITIVITY = 1.1;
     const SMOOTHING_FACTOR = 0.2;
+    const DRAFT_SYNC_INTERVAL_MS = 280;
+    let lastDraftSyncAt = 0;
 
     const screens = { 
         login: document.getElementById('login-screen'), 
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomPasswordInput = document.getElementById('room-password-input');
     const roomPasswordEnabled = document.getElementById('room-password-enabled');
     const createRoomPasswordInput = document.getElementById('create-room-password-input');
+    const createRoomSizeSetting = document.getElementById('create-room-size-setting');
     const volumeSlider = document.getElementById('volume-slider');
     const volumeValue = document.getElementById('volume-value');
     const menuTestSoundButton = document.getElementById('menu-test-sound-button');
@@ -70,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerList = document.getElementById('player-list');
     const roundsSetting = document.getElementById('rounds-setting');
     const livesSetting = document.getElementById('lives-setting');
+    const maxPlayersSetting = document.getElementById('max-players-setting');
     const listenModeSetting = document.getElementById('listen-mode-setting');
     const startGameButton = document.getElementById('start-game-button');
     const leaveLobbyButton = document.getElementById('leave-lobby-button');
@@ -93,6 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusOverlay = document.getElementById('status-overlay');
     const statusText = document.getElementById('status-text');
     const toast = document.getElementById('toast');
+    const privacyToggle = document.getElementById('privacy-toggle');
+    const privacyModal = document.getElementById('privacy-modal');
+    const privacyClose = document.getElementById('privacy-close');
     
     // Result displays
     const resultTarget = document.getElementById('result-target');
@@ -212,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setLobbySettingsReadOnly(isReadOnly) {
         roundsSetting.disabled = isReadOnly;
         livesSetting.disabled = isReadOnly;
+        maxPlayersSetting.disabled = isReadOnly;
         listenModeSetting.disabled = isReadOnly;
     }
 
@@ -432,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             guessCountdownTimer = null;
         }
         isGuessingPhase = false;
+        lastDraftSyncAt = 0;
         resetGuessSubmissionState();
         resetGuessAudio();
         stopPreviewTone();
@@ -523,6 +532,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
     }
 
+    function clampMaxPlayersInput(inputEl) {
+        const parsed = parseInt(inputEl.value, 10);
+        const clamped = Number.isFinite(parsed) ? Math.max(2, Math.min(4, parsed)) : 2;
+        inputEl.value = String(clamped);
+    }
+
     function cancelSmoothing() {
         if (smoothingFrameId) {
             cancelAnimationFrame(smoothingFrameId);
@@ -541,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setTargetFrequency(freq, immediate = false) {
         targetFrequency = clampFrequency(freq);
         frequencySlider.value = targetFrequency.toFixed(1);
+        maybeSyncDraftGuess();
 
         if (immediate) {
             renderedFrequency = targetFrequency;
@@ -571,6 +587,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             smoothingFrameId = null;
         }
+    }
+
+    function maybeSyncDraftGuess(force = false) {
+        if (isPracticeMode || !isGuessingPhase || hasSubmittedGuess || ws.readyState !== WebSocket.OPEN) return;
+        const now = Date.now();
+        if (!force && now - lastDraftSyncAt < DRAFT_SYNC_INTERVAL_MS) return;
+        lastDraftSyncAt = now;
+        sendMessage('updateDraftGuess', { frequency: targetFrequency });
     }
 
 
@@ -638,7 +662,13 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('Please set a room password or disable protection.', 2500);
             return;
         }
-        sendMessage('createRoom', { password, settings: { listenMode: listenModeSetting.value } });
+        sendMessage('createRoom', {
+            password,
+            settings: {
+                listenMode: listenModeSetting.value,
+                maxPlayers: createRoomSizeSetting.value,
+            }
+        });
     });
     joinRoomButton.addEventListener('click', () => { 
         const code = roomCodeInput.value.trim(); 
@@ -660,6 +690,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    createRoomSizeSetting.addEventListener('change', () => {
+        clampMaxPlayersInput(createRoomSizeSetting);
+    });
+
+    maxPlayersSetting.addEventListener('change', () => {
+        clampMaxPlayersInput(maxPlayersSetting);
+    });
+
+    privacyToggle.addEventListener('click', () => {
+        privacyModal.classList.add('active');
+        privacyModal.setAttribute('aria-hidden', 'false');
+    });
+
+    privacyClose.addEventListener('click', () => {
+        privacyModal.classList.remove('active');
+        privacyModal.setAttribute('aria-hidden', 'true');
+    });
+
+    privacyModal.addEventListener('click', (event) => {
+        if (event.target === privacyModal) {
+            privacyModal.classList.remove('active');
+            privacyModal.setAttribute('aria-hidden', 'true');
+        }
+    });
+
     startGameButton.addEventListener('click', () => { sendMessage('startGame', {}); });
     leaveLobbyButton.addEventListener('click', () => {
         sendMessage('leaveRoom', {});
@@ -667,9 +722,10 @@ document.addEventListener('DOMContentLoaded', () => {
         switchScreen('mainMenu');
     });
     
-    roundsSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value }));
-    livesSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value }));
-    listenModeSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, listenMode: listenModeSetting.value }));
+    roundsSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value }));
+    livesSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value }));
+    maxPlayersSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value }));
+    listenModeSetting.addEventListener('change', () => sendMessage('updateSettings', { rounds: roundsSetting.value, lives: livesSetting.value, maxPlayers: maxPlayersSetting.value, listenMode: listenModeSetting.value }));
 
     submitGuessButton.addEventListener('click', () => { 
         if (!isGuessingPhase) return;
@@ -684,6 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGuessingPhase = false; 
         resetGuessAudio();
         guessVisualizer.stop();
+        maybeSyncDraftGuess(true);
         sendMessage('submitGuess', { frequency: targetFrequency }); 
         showStatus('Guess submitted! Waiting for opponent...'); 
     });
@@ -766,6 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (payload.settings) {
                     roundsSetting.value = payload.settings.rounds;
                     livesSetting.value = payload.settings.lives;
+                    maxPlayersSetting.value = payload.settings.maxPlayers || 2;
                     listenModeSetting.value = payload.settings.listenMode || (payload.settings.hardMode ? 'hard' : 'easy');
                 }
                 
@@ -775,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     gameSettingsDiv.style.display = 'flex';
                     startGameButton.style.display = 'block';
                     waitingForHostText.style.display = 'none';
-                    startGameButton.disabled = payload.players.length < 2;
+                    startGameButton.disabled = payload.players.length < 2 || payload.players.length > 2;
                 } else {
                     gameSettingsDiv.style.display = 'flex';
                     startGameButton.style.display = 'none';
@@ -809,6 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'guessPhaseStart':
                 resetGuessSubmissionState();
                 enterGuessingPhase();
+                maybeSyncDraftGuess(true);
                 startSecondCountdown('guessCountdownTimer', guessTimerDisplay, Number.isFinite(payload.guessMs) ? payload.guessMs : 30000);
                 break;
             case 'hurryUp':
@@ -818,7 +877,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast(payload.message || 'Hurry up! 5 seconds left.', 2600);
                 startSecondCountdown('guessCountdownTimer', guessTimerDisplay, Number.isFinite(payload.remainingMs) ? payload.remainingMs : 5000);
                 break;
-            case 'roundResult': statusOverlay.classList.remove('active'); hurryUpNotice.textContent = 'Opponent submitted. 5 seconds left!'; hurryUpNotice.classList.remove('active'); switchPhase('result'); resultTarget.textContent = payload.target.toFixed(2); resultYourGuess.textContent = payload.yourGuess.toFixed(2); resultOpponentGuess.textContent = payload.opponentGuess.toFixed(2); resultSummary.textContent = describeResult(payload.target, payload.yourGuess, payload.opponentGuess, payload.roundWinnerId); yourResultRow.classList.remove('winner'); opponentResultRow.classList.remove('winner'); if (payload.roundWinnerId) { (payload.roundWinnerId === myPlayerId ? yourResultRow : opponentResultRow).classList.add('winner'); } break;
+            case 'roundResult':
+                statusOverlay.classList.remove('active');
+                hurryUpNotice.textContent = 'Opponent submitted. 5 seconds left!';
+                hurryUpNotice.classList.remove('active');
+                switchPhase('result');
+                resultTarget.textContent = Number(payload.target || 0).toFixed(2);
+                resultYourGuess.textContent = Number(payload.yourGuess || 0).toFixed(2);
+                resultOpponentGuess.textContent = Number(payload.opponentGuess || 0).toFixed(2);
+                resultSummary.textContent = describeResult(payload.target, payload.yourGuess, payload.opponentGuess, payload.roundWinnerId);
+                if (payload.yourTimedOut) {
+                    resultSummary.textContent += ' You timed out, so your latest slider value was used.';
+                }
+                if (payload.opponentTimedOut) {
+                    resultSummary.textContent += ' Opponent timed out.';
+                }
+                yourResultRow.classList.remove('winner');
+                opponentResultRow.classList.remove('winner');
+                if (payload.roundWinnerId) {
+                    (payload.roundWinnerId === myPlayerId ? yourResultRow : opponentResultRow).classList.add('winner');
+                }
+                break;
             case 'setResult': updateLives(myLivesContainer, payload.yourLives); updateLives(opponentLivesContainer, payload.opponentLives); let txt = "This set is a draw!"; if (payload.setWinnerId) txt = payload.setWinnerId === myPlayerId ? "You won this set!" : "Opponent won this set."; showStatus(txt, 5000); break;
             case 'gameOver': 
                 cleanupActiveGameAudio();
