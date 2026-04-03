@@ -23,8 +23,6 @@ const GUESS_PHASE_MS = 30000;
 const NORMAL_HURRY_UP_MS = 5000;
 const HARD_HURRY_UP_MS = 2500;
 const SUBMIT_GRACE_MS = 3000;
-const DAILY_LEADERBOARD_PATH = path.join(__dirname, 'daily-leaderboard.json');
-const DAILY_MAX_ENTRIES_PER_DAY = 5000;
 
 // 1. Create HTTP Server to serve static files
 const server = http.createServer((req, res) => {
@@ -196,7 +194,7 @@ function handleMessage(playerId, type, payload) {
     const player = players[playerId];
     if (!player) return;
 
-    const ALLOWED_TYPES = new Set(['login', 'createRoom', 'joinRoom', 'updateSettings', 'startGame', 'leaveRoom', 'submitGuess', 'updateDraftGuess', 'submitDailyScore']);
+    const ALLOWED_TYPES = new Set(['login', 'createRoom', 'joinRoom', 'updateSettings', 'startGame', 'leaveRoom', 'submitGuess', 'updateDraftGuess']);
     if (!ALLOWED_TYPES.has(type)) {
         sendMessage(player.ws, 'error', { message: 'Unsupported action.' });
         return;
@@ -346,109 +344,7 @@ function handleMessage(playerId, type, payload) {
             }
             break;
 
-        case 'submitDailyScore':
-            handleDailyScoreSubmit(player, payload);
-            break;
     }
-}
-
-function sanitizeDateKey(dateKey) {
-    if (typeof dateKey !== 'string') return '';
-    const trimmed = dateKey.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return '';
-    return trimmed;
-}
-
-function loadDailyLeaderboard() {
-    try {
-        const raw = fs.readFileSync(DAILY_LEADERBOARD_PATH, 'utf8');
-        const parsed = JSON.parse(raw);
-        return (parsed && typeof parsed === 'object') ? parsed : {};
-    } catch (error) {
-        if (error.code === 'ENOENT') return {};
-        console.error('Failed to read daily leaderboard:', error);
-        return {};
-    }
-}
-
-function saveDailyLeaderboard(store) {
-    try {
-        fs.writeFileSync(DAILY_LEADERBOARD_PATH, JSON.stringify(store, null, 2));
-    } catch (error) {
-        console.error('Failed to write daily leaderboard:', error);
-    }
-}
-
-function sortDailyEntries(entries) {
-    entries.sort((a, b) => {
-        if (b.roundsCompleted !== a.roundsCompleted) {
-            return b.roundsCompleted - a.roundsCompleted;
-        }
-
-        if (a.totalDelta !== b.totalDelta) {
-            return a.totalDelta - b.totalDelta;
-        }
-
-        if (a.timeoutCount !== b.timeoutCount) {
-            return a.timeoutCount - b.timeoutCount;
-        }
-
-        return a.submittedAt - b.submittedAt;
-    });
-}
-
-function handleDailyScoreSubmit(player, payload) {
-    if (!player || !player.ws || !player.username) return;
-
-    const dateKey = sanitizeDateKey(payload?.dateKey);
-    if (!dateKey) {
-        sendMessage(player.ws, 'error', { message: 'Invalid daily date.' });
-        return;
-    }
-
-    const maxRounds = clampInteger(payload?.maxRounds, 1, 10, 5);
-    const roundsCompleted = clampInteger(payload?.roundsCompleted, 0, maxRounds, 0);
-    const totalDelta = Number(clampNumber(payload?.totalDelta, 0, 999999, 0).toFixed(2));
-    const timeoutCount = clampInteger(payload?.timeoutCount, 0, maxRounds, 0);
-
-    const leaderboardStore = loadDailyLeaderboard();
-    if (!Array.isArray(leaderboardStore[dateKey])) {
-        leaderboardStore[dateKey] = [];
-    }
-
-    const entry = {
-        id: generateId(12),
-        playerId: player.id,
-        username: sanitizeUsername(player.username) || 'Player',
-        roundsCompleted,
-        maxRounds,
-        totalDelta,
-        timeoutCount,
-        submittedAt: Date.now(),
-    };
-
-    leaderboardStore[dateKey].push(entry);
-    sortDailyEntries(leaderboardStore[dateKey]);
-
-    if (leaderboardStore[dateKey].length > DAILY_MAX_ENTRIES_PER_DAY) {
-        leaderboardStore[dateKey] = leaderboardStore[dateKey].slice(0, DAILY_MAX_ENTRIES_PER_DAY);
-    }
-
-    saveDailyLeaderboard(leaderboardStore);
-
-    const entries = leaderboardStore[dateKey];
-    const rank = entries.findIndex(item => item.id === entry.id) + 1;
-    const ownEntries = entries.filter(item => item.playerId === player.id);
-    const ownBest = ownEntries[0] || null;
-    const bestRank = ownBest ? entries.findIndex(item => item.id === ownBest.id) + 1 : null;
-
-    sendMessage(player.ws, 'dailyScoreResult', {
-        dateKey,
-        rank: rank > 0 ? rank : null,
-        totalPlayers: entries.length,
-        bestRank,
-        bestTotalDelta: ownBest ? ownBest.totalDelta : null,
-    });
 }
 
 function updateLobby(roomCode) {

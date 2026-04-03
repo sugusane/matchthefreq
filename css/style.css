@@ -741,20 +741,6 @@ button:disabled {
     gap: 10px;
 }
 
-.daily-result-info {
-    width: min(88%, 430px);
-    margin-top: 12px;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 224, 102, 0.34);
-    background: rgba(255, 224, 102, 0.08);
-    color: #ffe899;
-    font-family: 'Press Start 2P', cursive;
-    font-size: clamp(0.56rem, 1.8vw, 0.7rem);
-    line-height: 1.6;
-    text-align: center;
-}
-
 .result-label {
     color: var(--text-dim);
     font-family: 'Press Start 2P', cursive;
@@ -1049,5 +1035,39 @@ button:disabled {
     .privacy-link {
         font-size: 0.72rem;
         padding: 5px 7px;
+    }
+
+    button {
+        box-shadow: 0 4px 0 rgba(99, 68, 0, 0.36), 0 8px 12px rgba(0, 0, 0, 0.18);
+    }
+
+    button:hover {
+        box-shadow: 0 4px 0 rgba(99, 68, 0, 0.36), 0 8px 12px rgba(0, 0, 0, 0.22);
+        transform: translateY(-1px);
+    }
+
+    .panel {
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset, 0 8px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    .status-overlay {
+        background: rgba(0, 8, 20, 0.85);
+        backdrop-filter: none;
+    }
+
+    .toast {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+        touch-action: manipulation;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
     }
 }

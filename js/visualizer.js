@@ -1,4 +1,10 @@
 function createVisualizer(canvasId, isNoisy = false) {
+    function isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            || (navigator.maxTouchPoints !== undefined && navigator.maxTouchPoints > 0)
+            || window.matchMedia('(max-width: 768px)').matches;
+    }
+
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
         console.error(`Canvas with id ${canvasId} not found.`);
@@ -11,17 +17,22 @@ function createVisualizer(canvasId, isNoisy = false) {
     let noiseDrift = 0;
     let lowPowerMode = false;
     let lastFrameAt = 0;
+    let isMobile = isMobileDevice();
+    let cachedGradientBg = null;
+    let cachedGradientWave = null;
 
     function resizeCanvas() {
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
-        lowPowerMode = window.matchMedia('(max-width: 768px)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        lowPowerMode = isMobile || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        cachedGradientBg = null;
+        cachedGradientWave = null;
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
     function draw(now = 0) {
-        const frameBudget = lowPowerMode ? (1000 / 24) : (1000 / 60);
+        const frameBudget = lowPowerMode ? (1000 / 18) : (1000 / 60);
         if (now - lastFrameAt < frameBudget) {
             animationFrameId = requestAnimationFrame(draw);
             return;
@@ -37,10 +48,12 @@ function createVisualizer(canvasId, isNoisy = false) {
         const freqFactor = 1.8 + normalized * 8.5;
         const baseAmplitude = (height * 0.14) + normalized * (height * 0.2);
 
-        const bg = ctx.createLinearGradient(0, 0, 0, height);
-        bg.addColorStop(0, lowPowerMode ? 'rgba(4, 17, 14, 0.2)' : 'rgba(4, 17, 14, 0.25)');
-        bg.addColorStop(1, lowPowerMode ? 'rgba(1, 4, 10, 0.46)' : 'rgba(1, 4, 10, 0.55)');
-        ctx.fillStyle = bg;
+        if (!cachedGradientBg) {
+            cachedGradientBg = ctx.createLinearGradient(0, 0, 0, height);
+            cachedGradientBg.addColorStop(0, lowPowerMode ? 'rgba(4, 17, 14, 0.2)' : 'rgba(4, 17, 14, 0.25)');
+            cachedGradientBg.addColorStop(1, lowPowerMode ? 'rgba(1, 4, 10, 0.46)' : 'rgba(1, 4, 10, 0.55)');
+        }
+        ctx.fillStyle = cachedGradientBg;
         ctx.fillRect(0, 0, width, height);
 
         if (!lowPowerMode) {
@@ -108,6 +121,7 @@ function createVisualizer(canvasId, isNoisy = false) {
         ctx.shadowBlur = 0;
 
         time += lowPowerMode ? 0.02 : 0.028;
+            time += lowPowerMode ? 0.02 : 0.028;
         noiseDrift += lowPowerMode ? 0.03 : 0.05;
         animationFrameId = requestAnimationFrame(draw);
     }

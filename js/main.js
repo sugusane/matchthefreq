@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let hasSubmittedGuess = false;
     let isPracticeMode = false;
     let currentSoloMode = 'practice';
+    let lastPointerMoveAt = 0;
+    const POINTER_MOVE_THROTTLE_MS = navigator.maxTouchPoints > 0 ? 16 : 0;
     let practiceRound = 0;
     let practiceMaxRounds = 3;
     let practiceLives = 3;
@@ -18,10 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let practiceUserGuess = 0;
     let practiceAdvanceTimer = null;
     let practiceReturnTimer = null;
-    let dailyDateKey = '';
-    let dailyTargets = [];
-    let dailyTotalAbsDelta = 0;
-    let dailyTimeoutCount = 0;
     let previewOscillator = null, previewGain = null;
     let previewStopTimeout = null;
     let audioCtx, oscillator, gainNode;
@@ -55,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const welcomeMessage = document.getElementById('welcome-message');
     const menuActions = document.getElementById('menu-actions');
     const openPracticeButton = document.getElementById('open-practice-button');
-    const openDailyButton = document.getElementById('open-daily-button');
     const practicePanel = document.getElementById('practice-panel');
     const practiceListenModeSetting = document.getElementById('practice-listen-mode-setting');
     const practiceRoundsSetting = document.getElementById('practice-rounds-setting');
@@ -124,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const practiceEndActions = document.getElementById('practice-end-actions');
     const practiceRestartButton = document.getElementById('practice-restart-button');
     const practiceBackMenuButton = document.getElementById('practice-back-menu-button');
-    const dailyResultInfo = document.getElementById('daily-result-info');
     const MAX_USERNAME_CHARS = 20;
 
     // --- AUDIO ---
@@ -253,56 +249,10 @@ document.addEventListener('DOMContentLoaded', () => {
         roomPasswordEnabled.checked = false;
         createRoomPasswordInput.disabled = true;
         practiceEndActions.classList.add('hidden');
-        dailyResultInfo.classList.add('hidden');
-        dailyResultInfo.textContent = '';
     }
 
-    function getSoloTargetFrequency(roundNumber) {
-        if (currentSoloMode === 'daily') {
-            const todayKey = getDailyDateKey();
-            if (dailyDateKey !== todayKey || !dailyTargets.length) {
-                dailyDateKey = todayKey;
-                dailyTargets = getDailyTargets(dailyDateKey, 5);
-            }
-
-            return dailyTargets[roundNumber - 1] ?? dailyTargets[dailyTargets.length - 1] ?? 550;
-        }
-
+    function getSoloTargetFrequency() {
         return Math.floor(Math.random() * (MAX_FREQ - MIN_FREQ + 1)) + MIN_FREQ;
-    }
-
-    function getDailyDateKey(date = new Date()) {
-        return date.toISOString().slice(0, 10);
-    }
-
-    function hashStringToInt(input) {
-        let hash = 2166136261;
-        for (let index = 0; index < input.length; index += 1) {
-            hash ^= input.charCodeAt(index);
-            hash = Math.imul(hash, 16777619);
-        }
-        return hash >>> 0;
-    }
-
-    function createSeededRng(seed) {
-        let state = seed >>> 0;
-        return () => {
-            state += 0x6D2B79F5;
-            let t = state;
-            t = Math.imul(t ^ (t >>> 15), t | 1);
-            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
-
-    function getDailyTargets(dateKey, roundCount = 5) {
-        const rng = createSeededRng(hashStringToInt(`mtf-daily:${dateKey}`));
-        const targets = [];
-        for (let index = 0; index < roundCount; index += 1) {
-            const value = MIN_FREQ + (rng() * (MAX_FREQ - MIN_FREQ));
-            targets.push(Math.round(value * 10) / 10);
-        }
-        return targets;
     }
 
     function resolveListenDuration(listenMode) {
@@ -331,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
         exitPracticeButton.classList.toggle('hidden', !isActive);
         if (isActive) {
             practiceEndActions.classList.add('hidden');
-            hideDailyResultInfo();
         }
     }
 
@@ -352,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isPracticeMode = false;
         setPracticeUiActive(false);
         practiceEndActions.classList.add('hidden');
-        hideDailyResultInfo();
         switchScreen('mainMenu');
         showMainMenuView('actions');
         showToast('Left practice mode.', 1600);
@@ -369,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switchPhase('prep');
         resetGuessSubmissionState();
-        practiceTargetFrequency = getSoloTargetFrequency(practiceRound);
+        practiceTargetFrequency = getSoloTargetFrequency();
         const prepMs = 3000;
         const listenMs = resolveListenDuration(practiceListenMode);
         const guessMs = 30000;
@@ -407,12 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
         guessVisualizer.stop();
         practiceUserGuess = targetFrequency;
 
-        const roundAbsDelta = Math.abs(practiceTargetFrequency - practiceUserGuess);
-        if (currentSoloMode === 'daily') {
-            dailyTotalAbsDelta += roundAbsDelta;
-            if (wasTimedOut) dailyTimeoutCount += 1;
-        }
-
         if (wasTimedOut) {
             practiceLives = Math.max(0, practiceLives - 1);
             updateLives(myLivesContainer, practiceLives);
@@ -434,22 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (practiceLives <= 0) {
                 isPracticeMode = false;
                 setPracticeUiActive(false);
-                if (currentSoloMode === 'daily') {
-                    practiceEndActions.classList.add('hidden');
-                    dailyResultInfo.textContent = 'Submitting daily score...';
-                    dailyResultInfo.classList.remove('hidden');
-                    submitDailyScore();
-                    if (practiceReturnTimer) clearTimeout(practiceReturnTimer);
-                    practiceReturnTimer = setTimeout(() => {
-                        hideDailyResultInfo();
-                        switchScreen('mainMenu');
-                        showMainMenuView('actions');
-                    }, 10000);
-                    showStatus('Daily run ended.', 1800);
-                } else {
-                    practiceEndActions.classList.remove('hidden');
-                    showStatus('Practice over. Choose what to do next.', 1800);
-                }
+                practiceEndActions.classList.remove('hidden');
+                showStatus('Practice over. Choose what to do next.', 1800);
                 return;
             }
 
@@ -459,22 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 isPracticeMode = false;
                 setPracticeUiActive(false);
-                if (currentSoloMode === 'daily') {
-                    practiceEndActions.classList.add('hidden');
-                    dailyResultInfo.textContent = 'Submitting daily score...';
-                    dailyResultInfo.classList.remove('hidden');
-                    submitDailyScore();
-                    if (practiceReturnTimer) clearTimeout(practiceReturnTimer);
-                    practiceReturnTimer = setTimeout(() => {
-                        hideDailyResultInfo();
-                        switchScreen('mainMenu');
-                        showMainMenuView('actions');
-                    }, 10000);
-                    showStatus('Daily complete. Checking your rank...', 1800);
-                } else {
-                    practiceEndActions.classList.remove('hidden');
-                    showStatus('Practice complete. Choose next action.', 1800);
-                }
+                practiceEndActions.classList.remove('hidden');
+                showStatus('Practice complete. Choose next action.', 1800);
             }
         }, 4200);
     }
@@ -482,39 +396,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function startPracticeMode() {
         isPracticeMode = true;
         practiceRound = 1;
-        dailyTotalAbsDelta = 0;
-        dailyTimeoutCount = 0;
-        hideDailyResultInfo();
-
-        if (currentSoloMode === 'daily') {
-            practiceMaxRounds = 5;
-            practiceLives = 1;
-            practiceListenMode = 'easy';
-            if (practiceRoundsSetting) practiceRoundsSetting.value = '5';
-            if (practiceLivesSetting) practiceLivesSetting.value = '1';
-            if (practiceListenModeSetting) practiceListenModeSetting.value = 'easy';
-        } else {
-            practiceMaxRounds = clampPracticeSetting(practiceRoundsSetting.value, 1, 20, 3);
-            practiceLives = clampPracticeSetting(practiceLivesSetting.value, 1, 10, 3);
-            practiceListenMode = String(practiceListenModeSetting?.value || 'easy');
-        }
+        practiceMaxRounds = clampPracticeSetting(practiceRoundsSetting.value, 1, 20, 3);
+        practiceLives = clampPracticeSetting(practiceLivesSetting.value, 1, 10, 3);
+        practiceListenMode = String(practiceListenModeSetting?.value || 'easy');
         clearPracticeAdvanceTimer();
         cleanupActiveGameAudio();
         setMasterVolume(parseInt(volumeSlider.value, 10) || 10);
         switchScreen('game');
         myUsernameDisplay.textContent = 'You';
-        opponentUsernameDisplay.textContent = currentSoloMode === 'daily' ? 'Daily' : 'Practice';
+        opponentUsernameDisplay.textContent = 'Practice';
         updateLives(myLivesContainer, practiceLives);
         updateLives(opponentLivesContainer, 0);
         roundIndicator.textContent = `1/${practiceMaxRounds}`;
         setPracticeUiActive(true);
         practiceEndActions.classList.add('hidden');
         startPracticeRound();
-    }
-
-    function startDailyMode() {
-        currentSoloMode = 'daily';
-        startPracticeMode();
     }
 
     function resetGuessSubmissionState() {
@@ -645,23 +541,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${Math.abs(value).toFixed(2)} Hz`;
     }
 
-    function hideDailyResultInfo() {
-        dailyResultInfo.classList.add('hidden');
-        dailyResultInfo.textContent = '';
-    }
-
-    function submitDailyScore() {
-        if (currentSoloMode !== 'daily') return;
-        const roundsCompleted = Math.max(0, Math.min(practiceRound, practiceMaxRounds));
-        sendMessage('submitDailyScore', {
-            dateKey: getDailyDateKey(),
-            roundsCompleted,
-            maxRounds: practiceMaxRounds,
-            totalDelta: Number(dailyTotalAbsDelta.toFixed(2)),
-            timeoutCount: dailyTimeoutCount,
-        });
-    }
-
     function describeResult(target, yourGuess, opponentGuess, roundWinnerId) {
         const yourDiff = Math.abs(target - yourGuess);
         const opponentDiff = Math.abs(target - opponentGuess);
@@ -777,10 +656,6 @@ document.addEventListener('DOMContentLoaded', () => {
     openPracticeButton.addEventListener('click', () => {
         currentSoloMode = 'practice';
         showMainMenuView('practice');
-    });
-
-    openDailyButton.addEventListener('click', () => {
-        startDailyMode();
     });
 
     startPracticeButton.addEventListener('click', () => {
@@ -948,7 +823,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     guessingPhase.addEventListener('pointermove', (e) => {
-        applyDrag(e.clientY);
+        const now = Date.now();
+        if (now - lastPointerMoveAt >= POINTER_MOVE_THROTTLE_MS) {
+            applyDrag(e.clientY);
+            lastPointerMoveAt = now;
+        }
     });
 
     guessingPhase.addEventListener('pointerup', () => {
@@ -1013,33 +892,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'error': 
                 showStatus(String(payload.message || 'Error'), 3000);
                 break;
-            case 'dailyScoreResult':
-                if (currentSoloMode === 'daily') {
-                    const rank = Number.isFinite(Number(payload.rank)) ? Number(payload.rank) : null;
-                    const totalPlayers = Number.isFinite(Number(payload.totalPlayers)) ? Number(payload.totalPlayers) : null;
-                    const bestRank = Number.isFinite(Number(payload.bestRank)) ? Number(payload.bestRank) : null;
-                    const bestDelta = Number.isFinite(Number(payload.bestTotalDelta)) ? Number(payload.bestTotalDelta).toFixed(2) : null;
-
-                    if (rank && totalPlayers) {
-                        const bestPart = bestRank && bestDelta
-                            ? ` Best kamu hari ini #${bestRank} (${bestDelta} Hz total).`
-                            : '';
-                        dailyResultInfo.textContent = `Daily Rank #${rank} dari ${totalPlayers} pemain.${bestPart}`;
-                    } else {
-                        dailyResultInfo.textContent = 'Daily score saved.';
-                    }
-                    dailyResultInfo.classList.remove('hidden');
-                    showStatus('Daily rank updated. Returning to menu...', 1700);
-                    if (practiceReturnTimer) clearTimeout(practiceReturnTimer);
-                    practiceReturnTimer = setTimeout(() => {
-                        hideDailyResultInfo();
-                        switchScreen('mainMenu');
-                        showMainMenuView('actions');
-                    }, 4500);
-                }
-                break;
             case 'statusUpdate': showStatus(payload.message); break;
-            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); hideDailyResultInfo(); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
+            case 'gameStart': statusOverlay.classList.remove('active'); initAudio(); resetGuessSubmissionState(); opponent = payload.opponent; opponentUsernameDisplay.textContent = opponent.username; updateLives(myLivesContainer, payload.lives); updateLives(opponentLivesContainer, payload.opponentLives); switchScreen('game'); break;
             case 'roundPrepStart':
                 cleanupActiveGameAudio();
                 switchPhase('prep');
