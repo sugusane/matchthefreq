@@ -35,6 +35,7 @@
     };
     let lastDraftSyncAt = 0;
     let singleplayerListenMode = 'easy';
+    let pendingLoginUsername = '';
 
     const screens = { 
         login: document.getElementById('login-screen'), 
@@ -148,7 +149,9 @@
         if (!normalizedUsername) return;
 
         initAudio();
-        sendMessage('login', { username: normalizedUsername });
+        if (!sendMessage('login', { username: normalizedUsername })) {
+            pendingLoginUsername = normalizedUsername;
+        }
         setCookie(USERNAME_COOKIE_KEY, normalizedUsername, USERNAME_COOKIE_MAX_AGE_SECONDS);
         welcomeMessage.textContent = `Welcome, ${normalizedUsername}!`;
         myUsernameDisplay.textContent = normalizedUsername;
@@ -243,6 +246,19 @@
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
+    ws.onopen = () => {
+        if (pendingLoginUsername) {
+            sendMessage('login', { username: pendingLoginUsername });
+            pendingLoginUsername = '';
+        }
+        createRoomButton.disabled = false;
+        joinRoomButton.disabled = false;
+    };
+
+    ws.onclose = () => {
+        showStatus('Connection lost. Please refresh.', 2600);
+    };
+
     ws.onmessage = (event) => {
         const { type, payload } = JSON.parse(event.data);
         handleServerMessage(type, payload);
@@ -251,9 +267,10 @@
     function sendMessage(type, payload) {
         if (ws.readyState !== WebSocket.OPEN) {
             showToast('Connection is not ready. Please wait a moment.');
-            return;
+            return false;
         }
         ws.send(JSON.stringify({ type, payload }));
+        return true;
     }
 
     // --- UI & GAME FLOW ---
@@ -564,7 +581,7 @@
         for (let index = 0; index < lives; index++) {
             const heart = document.createElement('span');
             heart.className = 'heart';
-            heart.textContent = 'â™¥';
+            heart.textContent = '\u2665';
             container.appendChild(heart);
         }
     }
@@ -756,13 +773,17 @@
         
         createRoomButton.disabled = true;
         showStatus('Creating room...', 900);
-        sendMessage('createRoom', {
+        const sent = sendMessage('createRoom', {
             password,
             settings: {
                 listenMode: 'easy',
                 maxPlayers: 2,
             }
         });
+        if (!sent) {
+            createRoomButton.disabled = false;
+            return;
+        }
         
         // Re-enable button after 3 seconds if error occurs (server will respond with error message)
         setTimeout(() => {
@@ -780,7 +801,11 @@
         if (joinRoomButton.disabled) return;
         joinRoomButton.disabled = true;
         showStatus('Joining room...', 900);
-        sendMessage('joinRoom', { roomCode: code, password: roomPasswordInput.value.trim() }); 
+        const sent = sendMessage('joinRoom', { roomCode: code, password: roomPasswordInput.value.trim() }); 
+        if (!sent) {
+            joinRoomButton.disabled = false;
+            return;
+        }
         
         // Re-enable button after 3 seconds if error occurs
         setTimeout(() => {
