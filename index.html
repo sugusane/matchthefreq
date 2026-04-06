@@ -4,28 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="index, follow">
-    <meta name="description" content="Challenge your ear in Match the Frequency, a real-time multiplayer music game. Compete with players worldwide in pitch and rhythm recognition.">
-    <meta name="keywords" content="music game, frequency matching, pitch recognition, rhythm game, ear training, multiplayer game, music challenge, note recognition">
+    <meta name="description" content="Play Match the Frequency, a sound guessing game and audio game online for ear training. Match tones in this Hz frequency game with real-time multiplayer and singleplayer modes.">
+    <meta name="keywords" content="sound guessing game, audio game online, ear training game, hz frequency game, music game, frequency matching, pitch recognition, rhythm game, note recognition, multiplayer audio game, pitch game online">
+    <meta name="author" content="wirasena">
+    <meta name="application-name" content="Match the Frequency">
     
     <!-- Open Graph Tags -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Match the Frequency - Multiplayer Music Game">
-    <meta property="og:description" content="Challenge your ear in Match the Frequency, a real-time multiplayer music game. Compete with players worldwide in pitch and rhythm recognition.">
+    <meta property="og:title" content="Match the Frequency - Sound Guessing Game">
+    <meta property="og:description" content="Play Match the Frequency, an audio game online for ear training and frequency matching. Test your hearing in this fast Hz frequency game.">
     <meta property="og:url" content="https://matchthefreq.site/">
     <meta property="og:image" content="https://matchthefreq.site/og-image.png">
     <meta property="og:site_name" content="Match the Frequency">
+    <meta property="og:locale" content="en_US">
     
     <!-- Twitter Card Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Match the Frequency - Multiplayer Music Game">
-    <meta name="twitter:description" content="Challenge your ear in Match the Frequency, a real-time multiplayer music game. Compete with players worldwide in pitch and rhythm recognition.">
+    <meta name="twitter:title" content="Match the Frequency - Sound Guessing Game">
+    <meta name="twitter:description" content="Play Match the Frequency, an audio game online for ear training and frequency matching. Test your hearing in this fast Hz frequency game.">
     <meta name="twitter:image" content="https://matchthefreq.site/og-image.png">
     <meta name="twitter:site" content="@matchthefreq">
     
     <!-- Canonical Link -->
     <link rel="canonical" href="https://matchthefreq.site/">
     
-    <title>Match the Frequency - Music Game</title>
+    <title>Match the Frequency - Sound Guessing & Ear Training Game</title>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Match the Frequency",
+        "url": "https://matchthefreq.site/",
+        "description": "A browser-based sound guessing game and audio game online where players match tones by ear in a competitive Hz frequency challenge.",
+        "genre": ["Music", "Puzzle", "Training"],
+        "gamePlatform": "Web Browser",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "keywords": [
+            "sound guessing game",
+            "audio game online",
+            "ear training game",
+            "hz frequency game",
+            "frequency matching",
+            "pitch recognition",
+            "multiplayer music game"
+        ]
+    }
+    </script>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "What is a sound guessing game?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "A sound guessing game challenges players to identify or match tones by hearing. In Match the Frequency, you listen to a target sound and try to match its frequency as accurately as possible."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Can I play this audio game online with friends?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. Match the Frequency is an audio game online with multiplayer rooms, so you can create a room and challenge friends in real time."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How does this ear training game improve listening skills?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "This ear training game helps by repeating frequency matching rounds where you compare your guess against the target pitch, improving tone recognition and hearing precision over time."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What is an Hz frequency game?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "An Hz frequency game is a game based on Hertz values, where players interact with and identify sound frequencies. Match the Frequency uses a slider to guess exact tone values in Hz."
+                }
+            }
+        ]
+    }
+    </script>
+
     <link rel="stylesheet" href="css/style.css?v=20260403d">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
@@ -38,6 +106,28 @@
         <div class="card panel">
             <h1>Match the Frequency</h1>
             <p class="subtitle">Tune by ear. Beat your rival.</p>
+            <p class="intro-copy">Match tones in a sound guessing game designed for ear training. Play this audio game online and improve your hearing accuracy in every Hz frequency game round.</p>
+
+            <section class="seo-faq" aria-label="Frequently asked questions">
+                <h2 class="seo-faq-title">FAQ</h2>
+                <details>
+                    <summary>What is a sound guessing game?</summary>
+                    <p>A sound guessing game challenges you to identify or match tones by hearing. In this game, you listen first, then guess the exact pitch.</p>
+                </details>
+                <details>
+                    <summary>Can I play this audio game online with friends?</summary>
+                    <p>Yes. You can create a room, invite friends, and compete in real time in this browser-based audio game online.</p>
+                </details>
+                <details>
+                    <summary>How does this ear training game help?</summary>
+                    <p>Repeated rounds train your ears to detect small pitch differences, making this a practical ear training game for musicians and casual players.</p>
+                </details>
+                <details>
+                    <summary>What is an Hz frequency game?</summary>
+                    <p>An Hz frequency game uses Hertz values for tone challenges. You adjust frequency and submit your best guess to match the target Hz.</p>
+                </details>
+            </section>
+
             <input type="text" id="username-input" placeholder="Enter your name" maxlength="20">
             <button id="login-button">Continue</button>
         </div>
